@@ -1,0 +1,41 @@
+[OPERATION]
+Toonplayer is a looping movie clips player. It is intended to be used to display clips made with the Toonloop live stop motion animation software. All the movie files should be in the same directory, and their name should end with ".mov". The path to the directory where these files are located shoud be given as a first argument to the command. If not given, it defaults to ~/Documents/toonplayer if it exists. If the latter directory does not exist, it will use the current working directory. There must be files whose name end with ".mov" in that directory, otherwise, Toonplayer will complain and exit. 
+
+Toonloop saves its clips using the Motion-JPEG codec in the Quicktime container. They have no sound. Toonplayer uses Gstreamer to play those clips in a window. 
+
+[GRAPHICAL USER INTERFACE]
+
+Press the Escape keyboard key to toggle on/off the fullscreen mode.
+
+You can pause and resume the clips being played. The clips change every several seconds to the next one in the clips directory.
+
+[SEE ALSO]
+See http://www.toonloop.com for help and documentation.
+
+[AUTHOR]
+Alexandre Quessy. 
+
+[REPORTING BUGS]
+http://www.toonloop.com
+
+[COPYRIGHT]
+Copyright 2010 Alexandre Quessy
+<alexandre@quessy.net>
+
+Toonplayer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+Toonplayer is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the gnu general public license
+along with Toonplayer.  If not, see <http://www.gnu.org/licenses/>.
+
+[CREDITS]
+The SVG icon is released under the GPL as well by user Linuxerist/LI
+on http://commons.wikimedia.org. The URL of the file on that site is 
+http://commons.wikimedia.org/wiki/File:Video-x-generic.svg

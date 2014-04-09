@@ -1,0 +1,11 @@
+[Desktop Entry]
+Encoding=UTF-8
+Exec=toonplayer 
+Type=Application
+Terminal=false
+Name=Toonplayer
+Comment=Looping Video Player
+Comment[fr]=Lecteur de fichiers vidéo en boucle
+Categories=AudioVideo;
+Icon=toonplayer
+
