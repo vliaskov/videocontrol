@@ -27,8 +27,6 @@
 """
 Main entry point of the application.
 """
-__version__ = "0.1.1"
-
 import os
 import sys
 import optparse
@@ -36,7 +34,8 @@ from twisted.internet import gtk2reactor
 gtk2reactor.install() # has to be done before importing reactor and gtk
 from twisted.internet import reactor
 import gobject
-from toonplay import gui
+from vctrl import __version__
+from vctrl import gui
 
 DEFAULT_DIRECTORY = "~/Documents/toonplayer"
 
@@ -62,3 +61,4 @@ def run():
     vj.choose_next()
     app.window.show_all()
     reactor.run()
+

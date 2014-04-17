@@ -2,13 +2,10 @@
 # -*- Mode: Python -*-
 # vi:si:et:sw=4:sts=4:ts=4
 #
-# Toonloop clips player
+# VideoControl
 #
 # Copyright 2010 Alexandre Quessy
 # http://www.toonloop.com
-#
-# Original idea by Alexandre Quessy
-# http://alexandre.quessy.net
 #
 # Toonloop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

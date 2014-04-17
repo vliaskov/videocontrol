@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 from distutils.core import setup
-
-__version__ = "0.1.1"
+from vctrl import __version__
 
 setup(
-    name="toonplayer",
+    name="videocontrol",
     version=__version__,
-    description="The Toonplayer Looping Video Player",
+    description="Video cueing board for live arts",
     author="Alexandre Quessy",
     author_email="alexandre@quessy.net",
     url="http://www.toonloop.com",
-    packages=["toonplay"],
-    scripts=["toonplayer"]
+    packages=["vctrl"],
+    scripts=["videocontrol"]
     )
+

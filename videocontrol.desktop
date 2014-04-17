@@ -1,0 +1,11 @@
+[Desktop Entry]
+Encoding=UTF-8
+Exec=videocontrol 
+Type=Application
+Terminal=false
+Name=videocontrol
+Comment=Video cueing board for live arts
+Comment[fr]=Lecteur de fichiers vidéo pour le spectacle vivant
+Categories=AudioVideo;
+Icon=videocontrol
+
