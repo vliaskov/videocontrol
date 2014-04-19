@@ -1,0 +1,21 @@
+{
+    "cues":
+    [
+        {
+            "identifier": "1.0",
+            "shortcut": "a",
+            "fadein": 0.0,
+            "action": "play_video",
+            "video_file": "~/current/projects/europa/videoclips/a.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "2.0",
+            "shortcut": "b",
+            "fadein": 10.0,
+            "action": "play_video",
+            "video_file": "~/current/projects/europa/videoclips/b.mov",
+            "after" : "freeze"
+        }
+    ]
+}

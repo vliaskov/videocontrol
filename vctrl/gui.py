@@ -52,6 +52,9 @@ def call_callbacks(callbacks, *args, **kwargs):
         c(*args, **kwargs)
 
 class GstPlayer:
+    """
+    Video player.
+    """
     def __init__(self, videowidget):
         self.playing = False
         self.player = gst.element_factory_make("playbin", "player")
@@ -148,6 +151,9 @@ class GstPlayer:
         return self.playing
     
 class VideoWidget(gtk.DrawingArea):
+    """
+    Gtk+ widget to display video in.
+    """
     def __init__(self):
         gtk.DrawingArea.__init__(self)
         self.imagesink = None
@@ -177,6 +183,9 @@ def create_empty_cursor():
 
 
 class PlayerApp(object):
+    """
+    The GUI window to display video in.
+    """
     UPDATE_INTERVAL = 500
     def __init__(self):
         self.is_fullscreen = False
@@ -387,61 +396,82 @@ class VeeJay(object):
     """
     Chooses movie files to play.
     """
-    def __init__(self, player, dir_path=None):
+    def __init__(self, player, configuration):
+        """
+        @param player: vctrl.gui.PlayerApp instance.
+        @param configuration: vctrl.config.Configuration instance.
+        """
         self.player = player
-        if dir_path is None:
-            self.dir_path = os.getcwd()
-        else:
-            self.dir_path = os.path.abspath(os.path.expanduser(dir_path))
-        if not os.path.isdir(self.dir_path):
-            raise RuntimeError("%s is not a directory." % (self.dir_path))
-        #self.looping_call = 
-        self.previous_clip_path = None
-        #reactor.callLater(5, self.choose_next)
+        self.configuration = configuration
         self.clips = []
-        self.delay_between_changes = 5 # seconds
+        self._current_cue_index = -1 # Initial non-existing cue
 
-    def load_clip_list(self):
+    def get_cues(self):
+        return self.configuration.cues
+
+    def play_cue_for_shortcut(self, shortcut):
         """
-        Loads the list of clips to play.
-        Raises an error if there are none.
+        @param shortcut: Character. (letter or number)
         """
-        self.clips = glob.glob(os.path.join(self.dir_path, "*.mov"))
-        print("Found clips %s" % (self.clips))
-        if len(self.clips) == 0:
-            raise RuntimeError("No clips in directory %s" % (self.dir_path))
-    
-    def choose_next(self):
+        if len(shortcut) != 1:
+            print("Expect only one character.")
+            return
+        character = shortcut[0]
+        print("TODO")
+        # TODO
+
+    def play_next_cue(self):
         """
         Skips the player to the next clip. 
         Schedules to be called again later.
         """
-        self.load_clip_list()
+        ret = False
         prev = -1
-        if self.previous_clip_path in self.clips:
-            prev = self.clips.index(self.previous_clip_path)
-        print "prev:", prev
-        next = prev + 1
-        if len(self.clips) == 0:
-            print("Not clip to play.")
-        elif len(self.clips) == 1:
-            print("Only one clip to play.")
+        _next = 0
+        cues = self.get_cues()
+        if self._current_cue_index >= (len(cues) - 1):
+            _next = 0
         else:
-            if len(self.clips) == next:
-                next = 0
-            print "next:", next
-            file_path = self.clips[next]
-            self.previous_clip_path = file_path
-            print "choosing file", file_path
-            uri = "file://%s" % (file_path)
-            if not gst.uri_is_valid(uri):
-                msg = "Error: Invalid URI: %s\n" % (uri)
-                raise RuntimeError(msg)
+            _next = (self._current_cue_index + 1) % len(cues)
+        print("Next cue: %s" % (_next))
+        if len(cues) == 0:
+            msg = "Not clip to play."
+            raise RuntimeError(msg)
+        else:
+            if len(cues) == 1:
+                print("Only one clip to play.")
+            self._current_cue_index = _next
+            video_cue = cues[self._current_cue_index]
+            if video_cue.action == "play_video":
+                file_path = video_cue.video_file
+                file_path = os.path.expanduser(file_path)
+                if os.path.exists(file_path):
+                    print("Playing file %s" % (file_path))
+                    uri = "file://%s" % (file_path)
+                    if gst.uri_is_valid(uri):
+                        self.player.set_location(uri)
+                        ret = True
+                    else:
+                        msg = "Error: Invalid URI: %s\n" % (uri)
+                        raise RuntimeError(msg)
+                        #print(msg)
+                else:
+                    msg = "No such video file: %s\n" % (file_path)
+                    raise RuntimeError(msg)
+                    #print(msg)
+
             else:
-                self.player.set_location(uri)
-        reactor.callLater(self.delay_between_changes, self.choose_next)
+                print("Video cue action not supported: %s" % (video_cue.action))
+
+            # TODO: duration = video_cue.duration
+            DELAY_BETWEEN_CHANGES = 5.0 # seconds
+            reactor.callLater(DELAY_BETWEEN_CHANGES, self.play_next_cue)
+        
+        return ret
+
 
 # Need to register our derived widget types for implicit event
 # handlers to get called.
 #gobject.type_register(PlayerWindow)
 gobject.type_register(VideoWidget)
+

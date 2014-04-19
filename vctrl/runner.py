@@ -36,29 +36,38 @@ from twisted.internet import reactor
 import gobject
 from vctrl import __version__
 from vctrl import gui
+from vctrl import config
 
 DEFAULT_DIRECTORY = "~/Documents/toonplayer"
+DEFAULT_CONFIG_FILE = "~/.videocontrol"
 
 def run():
-    parser = optparse.OptionParser(usage="%prog [directory name]", version=str(__version__))
+    parser = optparse.OptionParser(usage="%prog [configuration file name]", version=str(__version__))
     (options, args) = parser.parse_args()
     
     app = gui.PlayerApp()
-    dir_path = None
+
+    # Parse config file name:
+    config_file = None
     if len(args) >= 1:
-        dir_path = args[0]
+        config_file = args[0]
     else:
-        check_dir = os.path.expanduser(DEFAULT_DIRECTORY)
-        if os.path.exists(check_dir) and os.path.isdir(check_dir):
-            dir_path = check_dir
+        config_file = os.path.expanduser(DEFAULT_CONFIG_FILE)
+        if os.path.exists(config_file):
+            config_file = check_dir
     
-    vj = gui.VeeJay(app.player, dir_path)
+    configuration = config.load_from_file(config_file)
+    vj = gui.VeeJay(app.player, configuration)
     try:
-        vj.load_clip_list()
+        vj.play_next_cue()
     except RuntimeError, e:
-        print(str(e))
+        print("ERROR playing next cue: %s" % (e))
         sys.exit(1)
-    vj.choose_next()
+
     app.window.show_all()
-    reactor.run()
+    try:
+        reactor.run()
+    except KeyboardInterrupt:
+        print("")
+        sys.exit(0)
 

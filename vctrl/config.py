@@ -3,6 +3,9 @@ import os
 import json
 
 class VideoCue(object):
+    """
+    One video cue.
+    """
     def __init__(self):
         self.identifier = "1.0"
         self.shortcut = "a"
@@ -15,7 +18,12 @@ class VideoCue(object):
         ret = str(self.__dict__)
         return ret
 
+
 class Configuration(object):
+    """
+    The configuration options for this application.
+    Mostly contains the cue list.
+    """
     def __init__(self):
         self.cues = []
 
@@ -69,7 +77,8 @@ def load_from_file(config_file_path=None):
         data = json.load(f)
         f.close()
         try:
-            for item in data:
+            cues = data["cues"]
+            for item in cues:
                 cue = parse_one_cue(item)
                 ret.cues.append(cue)
         except RuntimeError, e:
