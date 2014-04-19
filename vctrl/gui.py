@@ -98,39 +98,46 @@ class GstPlayer:
             if self.looping:
                 self.play()
 
-    def set_location(self, location):
+    def set_location(self, location, fade_duration=0.0):
         was_playing = False
         if self.playing:
             was_playing = True
             self.stop()
-        self.player.set_property('uri', location)
-        if was_playing:
-            self.play()
+        use_crossfade = False
+        if fade_duration >= 0.02:
+            use_crossfade = True
+        if use_crossfade:
+            pass
+            # TODO
+        else:
+            self.player.set_property('uri', location)
+            if was_playing:
+                self.play()
 
-    def query_position(self):
-        "Returns a (position, duration) tuple"
-        try:
-            position, format = self.player.query_position(gst.FORMAT_TIME)
-        except:
-            position = gst.CLOCK_TIME_NONE
-        try:
-            duration, format = self.player.query_duration(gst.FORMAT_TIME)
-        except:
-            duration = gst.CLOCK_TIME_NONE
-        return (position, duration)
+    # def query_position(self):
+    #     "Returns a (position, duration) tuple"
+    #     try:
+    #         position, format = self.player.query_position(gst.FORMAT_TIME)
+    #     except:
+    #         position = gst.CLOCK_TIME_NONE
+    #     try:
+    #         duration, format = self.player.query_duration(gst.FORMAT_TIME)
+    #     except:
+    #         duration = gst.CLOCK_TIME_NONE
+    #     return (position, duration)
 
     def seek(self, location):
         """
         @param location: time to seek to, in nanoseconds
         """
-        gst.debug("seeking to %r" % location)
+        # gst.debug("seeking to %r" % location)
         event = gst.event_new_seek(1.0, gst.FORMAT_TIME,
             gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_ACCURATE,
             gst.SEEK_TYPE_SET, location,
             gst.SEEK_TYPE_NONE, 0)
         res = self.player.send_event(event)
         if res:
-            gst.info("setting new stream time to 0")
+            # gst.info("setting new stream time to 0")
             self.player.set_new_stream_time(0L)
         else:
             gst.error("seek to %r failed" % location)
@@ -266,7 +273,7 @@ class PlayerApp(object):
         self.play_toggled()
 
     def load_file(self, location):
-        print "loading %s" % (location)
+        print("loading %s" % (location))
         self.player.set_location(location)
 
     def on_delete_event(self, *args):
@@ -321,7 +328,7 @@ class PlayerApp(object):
         #print 'window state event', event.type, event.changed_mask, 
         #print event.new_window_state
         self.is_fullscreen = event.new_window_state & gtk.gdk.WINDOW_STATE_FULLSCREEN != 0
-        print('fullscreen %s' % (self.is_fullscreen))
+        # print('fullscreen %s' % (self.is_fullscreen))
         if self.is_fullscreen:
             # gtk.Window object has a gtk.gdk.Window attribute:
             self.window.window.set_cursor(self.invisible_cursor)
@@ -472,7 +479,7 @@ class VeeJay(object):
             file_path = video_cue.video_file
             file_path = os.path.expanduser(file_path)
             if os.path.exists(file_path):
-                print("Playing file %s" % (file_path))
+                # print("Playing file %s" % (file_path))
                 uri = "file://%s" % (file_path)
                 if gst.uri_is_valid(uri):
                     self.player.set_location(uri)
@@ -516,7 +523,6 @@ class VeeJay(object):
             # TODO: duration = video_cue.duration
             # DELAY_BETWEEN_CHANGES = 5.0 # seconds
             # reactor.callLater(DELAY_BETWEEN_CHANGES, self.play_next_cue)
-        
         return ret
 
 
