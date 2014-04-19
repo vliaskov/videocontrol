@@ -43,6 +43,10 @@ import gst
 import gst.interfaces
 import gtk
 gtk.gdk.threads_init()
+from vctrl import sig
+
+ALNUMS = [chr(x) for x in range(ord("a"), ord("z") + 1)]
+ALNUMS.extend(["%s" % (x,) for x in range(0, 9)])
 
 def call_callbacks(callbacks, *args, **kwargs):
     """
@@ -188,6 +192,7 @@ class PlayerApp(object):
     """
     UPDATE_INTERVAL = 500
     def __init__(self):
+        self.key_pressed_signal = sig.Signal()
         self.is_fullscreen = False
         # window
         self.window = gtk.Window()
@@ -264,13 +269,34 @@ class PlayerApp(object):
         self.player.stop()
         reactor.stop()
     
+    def quit(self):
+        self.player.stop()
+        reactor.stop()
+    
     def on_key_pressed(self, widget, event):
         """
         Escape toggles fullscreen mode.
         """
         name = gtk.gdk.keyval_name(event.keyval)
+
+        # We want to ignore irrelevant modifiers like ScrollLock
+        control_pressed = False
+        ALL_ACCELS_MASK = (gtk.gdk.CONTROL_MASK | gtk.gdk.SHIFT_MASK | gtk.gdk.MOD1_MASK)
+        #keyval, egroup, level, consumed = keymap.translate_keyboard_state(event.hardware_keycode, event.state, event.group)
+        if event.state & ALL_ACCELS_MASK == gtk.gdk.CONTROL_MASK:
+            control_pressed = True
+            # Control was pressed
         if name == "Escape":
             self.toggle_fullscreen()
+        else:
+            if control_pressed:
+                if name == "q":
+                    self.quit()
+            else:
+                #print("keyval_name: %s" % (name))
+                if name in ALNUMS:
+                    self.key_pressed_signal(name)
+                    #print("key_pressed_signal %s" % (name))
         return True
     
     def toggle_fullscreen(self):
@@ -396,15 +422,22 @@ class VeeJay(object):
     """
     Chooses movie files to play.
     """
-    def __init__(self, player, configuration):
+    def __init__(self, app, player, configuration):
         """
         @param player: vctrl.gui.PlayerApp instance.
         @param configuration: vctrl.config.Configuration instance.
         """
         self.player = player
         self.configuration = configuration
+        app.key_pressed_signal.connect(self._on_key_pressed_signal)
         self.clips = []
         self._current_cue_index = -1 # Initial non-existing cue
+
+    def _on_key_pressed_signal(self, character):
+        """
+        @param character: letter or number.
+        """
+        self.play_cue_for_shortcut(character)
 
     def get_cues(self):
         return self.configuration.cues
@@ -413,12 +446,45 @@ class VeeJay(object):
         """
         @param shortcut: Character. (letter or number)
         """
-        if len(shortcut) != 1:
-            print("Expect only one character.")
-            return
-        character = shortcut[0]
-        print("TODO")
+        #jif len(shortcut) != 1:
+        #j    print("Expect only one character.")
+        #j    return
+        #jcharacter = shortcut[0]
+        #jcues = get
+        #jprint("TODO")
         # TODO
+
+        cues = self.get_cues()
+        for cue in cues:
+            if cue.shortcut == shortcut:
+                self._play_cue(cue)
+                return
+
+    def _play_cue(self, video_cue):
+        """
+        @param cue: vctrl.config.VideoCue instance.
+        """
+        ret = False
+        if video_cue.action == "play_video":
+            file_path = video_cue.video_file
+            file_path = os.path.expanduser(file_path)
+            if os.path.exists(file_path):
+                print("Playing file %s" % (file_path))
+                uri = "file://%s" % (file_path)
+                if gst.uri_is_valid(uri):
+                    self.player.set_location(uri)
+                    ret = True
+                else:
+                    msg = "Error: Invalid URI: %s\n" % (uri)
+                    raise RuntimeError(msg)
+                    #print(msg)
+            else:
+                msg = "No such video file: %s\n" % (file_path)
+                raise RuntimeError(msg)
+                #print(msg)
+        else:
+            print("Video cue action not supported: %s" % (video_cue.action))
+        return ret
 
     def play_next_cue(self):
         """
@@ -442,30 +508,11 @@ class VeeJay(object):
                 print("Only one clip to play.")
             self._current_cue_index = _next
             video_cue = cues[self._current_cue_index]
-            if video_cue.action == "play_video":
-                file_path = video_cue.video_file
-                file_path = os.path.expanduser(file_path)
-                if os.path.exists(file_path):
-                    print("Playing file %s" % (file_path))
-                    uri = "file://%s" % (file_path)
-                    if gst.uri_is_valid(uri):
-                        self.player.set_location(uri)
-                        ret = True
-                    else:
-                        msg = "Error: Invalid URI: %s\n" % (uri)
-                        raise RuntimeError(msg)
-                        #print(msg)
-                else:
-                    msg = "No such video file: %s\n" % (file_path)
-                    raise RuntimeError(msg)
-                    #print(msg)
-
-            else:
-                print("Video cue action not supported: %s" % (video_cue.action))
+            ret = self._play_cue(video_cue)
 
             # TODO: duration = video_cue.duration
-            DELAY_BETWEEN_CHANGES = 5.0 # seconds
-            reactor.callLater(DELAY_BETWEEN_CHANGES, self.play_next_cue)
+            # DELAY_BETWEEN_CHANGES = 5.0 # seconds
+            # reactor.callLater(DELAY_BETWEEN_CHANGES, self.play_next_cue)
         
         return ret
 

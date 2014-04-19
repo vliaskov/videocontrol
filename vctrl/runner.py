@@ -56,8 +56,12 @@ def run():
         if os.path.exists(config_file):
             config_file = check_dir
     
-    configuration = config.load_from_file(config_file)
-    vj = gui.VeeJay(app.player, configuration)
+    try:
+        configuration = config.load_from_file(config_file)
+    except RuntimeError, e:
+        print(e)
+        sys.exit(1)
+    vj = gui.VeeJay(app, app.player, configuration)
     try:
         vj.play_next_cue()
     except RuntimeError, e:

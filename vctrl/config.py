@@ -12,7 +12,11 @@ class VideoCue(object):
         self.fadein = 0.0
         self.action = "play_video" # black
         self.video_file = ""
-        self.after = "freeze" # loop, next
+        self.after = "loop" # freeze, next
+        # TODO:
+        # self.loop_begin = 0.0
+        # self.loop_end = -0.0
+        # self.duration = 0.0
 
     def __str__(self):
         ret = str(self.__dict__)
