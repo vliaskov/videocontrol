@@ -1,3 +1,3 @@
 #!/usr/bin/env lunch
-add_command("cd ~/src/videocontrol && git pull origin master", respawn=False)
+add_command("bash ~/src/videocontrol/examples/europa/do_git_pull.sh", respawn=False, sleep_after=10)
 add_command("~/src/videocontrol/videocontrol ~/src/videocontrol/examples/europa/cues.json")
