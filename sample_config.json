@@ -1,5 +1,5 @@
 {
-    "fullscreen": true,
+    "fullscreen": false,
     "cues":
     [
         {
@@ -8,7 +8,7 @@
             "fadein": 0.0,
             "action": "play_video",
             "video_file": "~/current/projects/europa/videoclips/a.mov",
-            "after" : "freeze"
+            "after" : "loop"
         },
         {
             "identifier": "2.0",
@@ -16,7 +16,7 @@
             "fadein": 10.0,
             "action": "play_video",
             "video_file": "~/current/projects/europa/videoclips/b.mov",
-            "after" : "freeze"
+            "after" : "loop"
         }
     ]
 }
