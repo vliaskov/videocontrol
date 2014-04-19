@@ -55,6 +55,7 @@ def call_callbacks(callbacks, *args, **kwargs):
     for c in callbacks:
         c(*args, **kwargs)
 
+
 class GstPlayer:
     """
     Video player.
@@ -153,6 +154,7 @@ class GstPlayer:
 
     def is_playing(self):
         return self.playing
+
     
 class VideoWidget(gtk.DrawingArea):
     """
@@ -174,6 +176,7 @@ class VideoWidget(gtk.DrawingArea):
         assert self.window.xid
         self.imagesink = sink
         self.imagesink.set_xwindow_id(self.window.xid)
+
 
 def create_empty_cursor():
     pix_data = """/* XPM */
@@ -207,48 +210,49 @@ class PlayerApp(object):
         self.videowidget = VideoWidget()
         self.videowidget.connect_after('realize', self.play_toggled)
         vbox.pack_start(self.videowidget)
-        hbox = gtk.HBox()
-        vbox.pack_start(hbox, fill=False, expand=False)
+
+        # hbox = gtk.HBox()
+        # vbox.pack_start(hbox, fill=False, expand=False)
         
-        # play/pause button
-        self.pause_image = gtk.image_new_from_stock(
-            gtk.STOCK_MEDIA_PAUSE,
-            gtk.ICON_SIZE_BUTTON)
-        self.pause_image.show()
-        self.play_image = gtk.image_new_from_stock(
-            gtk.STOCK_MEDIA_PLAY,
-            gtk.ICON_SIZE_BUTTON)
-        self.play_image.show()
-        self.button = button = gtk.Button()
-        button.add(self.play_image)
-        button.set_property('can-default', True)
-        button.set_focus_on_click(False)
-        hbox.pack_start(button, False)
-        button.set_property('has-default', True)
-        button.connect('clicked', self.play_toggled)
-        button.show()
+        # # play/pause button
+        # self.pause_image = gtk.image_new_from_stock(
+        #     gtk.STOCK_MEDIA_PAUSE,
+        #     gtk.ICON_SIZE_BUTTON)
+        # self.pause_image.show()
+        # self.play_image = gtk.image_new_from_stock(
+        #     gtk.STOCK_MEDIA_PLAY,
+        #     gtk.ICON_SIZE_BUTTON)
+        # self.play_image.show()
+        # self.button = button = gtk.Button()
+        # button.add(self.play_image)
+        # button.set_property('can-default', True)
+        # button.set_focus_on_click(False)
+        # hbox.pack_start(button, False)
+        # button.set_property('has-default', True)
+        # button.connect('clicked', self.play_toggled)
+        # button.show()
         
-        # horizontal slider
-        self.adjustment = gtk.Adjustment(0.0, 0.00, 100.0, 0.1, 1.0, 1.0)
-        hscale = gtk.HScale(self.adjustment)
-        hscale.set_digits(2)
-        hscale.set_update_policy(gtk.UPDATE_CONTINUOUS)
-        hscale.connect('button-press-event', self.scale_button_press_cb)
-        hscale.connect('button-release-event', self.scale_button_release_cb)
-        hscale.connect('format-value', self.scale_format_value_cb)
-        hbox.pack_start(hscale)
-        self.hscale = hscale
+        # # horizontal slider
+        # self.adjustment = gtk.Adjustment(0.0, 0.00, 100.0, 0.1, 1.0, 1.0)
+        # hscale = gtk.HScale(self.adjustment)
+        # hscale.set_digits(2)
+        # hscale.set_update_policy(gtk.UPDATE_CONTINUOUS)
+        # hscale.connect('button-press-event', self.scale_button_press_cb)
+        # hscale.connect('button-release-event', self.scale_button_release_cb)
+        # hscale.connect('format-value', self.scale_format_value_cb)
+        # hbox.pack_start(hscale)
+        # self.hscale = hscale
         
         # player
         self.player = GstPlayer(self.videowidget)
         self.player.eos_callbacks.append(self.on_video_eos)
         
         # delayed calls using gobject. Update the slider.
-        self.update_id = -1
-        self.changed_id = -1
-        self.seek_timeout_id = -1
-        self.p_position = gst.CLOCK_TIME_NONE
-        self.p_duration = gst.CLOCK_TIME_NONE
+        # self.update_id = -1
+        # self.changed_id = -1
+        # self.seek_timeout_id = -1
+        # self.p_position = gst.CLOCK_TIME_NONE
+        # self.p_duration = gst.CLOCK_TIME_NONE
         # window events
         self.window.connect("key-press-event", self.on_key_pressed)
         self.window.connect("window-state-event", self.on_window_state_event)
@@ -349,74 +353,73 @@ class PlayerApp(object):
         Called when the play/pause button is clicked, 
         and also when other events occur.
         """
-        self.button.remove(self.button.child)
+        #self.button.remove(self.button.child)
         if self.player.is_playing():
             self.player.pause()
-            self.button.add(self.play_image)
+            #self.button.add(self.play_image)
         else:
             self.player.play()
-            if self.update_id == -1:
-                self.update_id = gobject.timeout_add(
-                    self.UPDATE_INTERVAL,
-                    self.update_scale_cb)
-            self.button.add(self.pause_image)
+            # if self.update_id == -1:
+            #     self.update_id = gobject.timeout_add(self.UPDATE_INTERVAL, self.update_scale_cb)
+            #self.button.add(self.pause_image)
 
-    def scale_format_value_cb(self, scale, value):
-        if self.p_duration == -1:
-            real = 0
-        else:
-            real = value * self.p_duration / 100
-        seconds = real / gst.SECOND
-        return "%02d:%02d" % (seconds / 60, seconds % 60)
+    # def scale_format_value_cb(self, scale, value):
+    #     if self.p_duration == -1:
+    #         real = 0
+    #     else:
+    #         real = value * self.p_duration / 100
+    #     seconds = real / gst.SECOND
+    #     return "%02d:%02d" % (seconds / 60, seconds % 60)
 
-    def scale_button_press_cb(self, widget, event):
-        # see seek.c:start_seek
-        gst.debug('starting seek')
-        self.button.set_sensitive(False)
-        self.was_playing = self.player.is_playing()
-        if self.was_playing:
-            self.player.pause()
-        # don't timeout-update position during seek
-        if self.update_id != -1:
-            gobject.source_remove(self.update_id)
-            self.update_id = -1
-        # make sure we get changed notifies
-        if self.changed_id == -1:
-            self.changed_id = self.hscale.connect('value-changed',
-                self.scale_value_changed_cb)
+    # def scale_button_press_cb(self, widget, event):
+    #     # see seek.c:start_seek
+    #     gst.debug('starting seek')
+    #     self.button.set_sensitive(False)
+    #     self.was_playing = self.player.is_playing()
+    #     if self.was_playing:
+    #         self.player.pause()
+    #     # don't timeout-update position during seek
+    #     if self.update_id != -1:
+    #         gobject.source_remove(self.update_id)
+    #         self.update_id = -1
+    #     # make sure we get changed notifies
+    #     if self.changed_id == -1:
+    #         self.changed_id = self.hscale.connect('value-changed',
+    #             self.scale_value_changed_cb)
             
-    def scale_value_changed_cb(self, scale):
-        # see seek.c:seek_cb
-        real = long(scale.get_value() * self.p_duration / 100) # in ns
-        gst.debug('value changed, perform seek to %r' % real)
-        self.player.seek(real)
-        # allow for a preroll
-        self.player.get_state(timeout=50*gst.MSECOND) # 50 ms
+    # def scale_value_changed_cb(self, scale):
+    #     # see seek.c:seek_cb
+    #     real = long(scale.get_value() * self.p_duration / 100) # in ns
+    #     gst.debug('value changed, perform seek to %r' % real)
+    #     self.player.seek(real)
+    #     # allow for a preroll
+    #     self.player.get_state(timeout=50*gst.MSECOND) # 50 ms
 
-    def scale_button_release_cb(self, widget, event):
-        # see seek.cstop_seek
-        widget.disconnect(self.changed_id)
-        self.changed_id = -1
-        self.button.set_sensitive(True)
-        if self.seek_timeout_id != -1:
-            gobject.source_remove(self.seek_timeout_id)
-            self.seek_timeout_id = -1
-        else:
-            gst.debug('released slider, setting back to playing')
-            if self.was_playing:
-                self.player.play()
-        if self.update_id != -1:
-            self.error('Had a previous update timeout id')
-        else:
-            self.update_id = gobject.timeout_add(self.UPDATE_INTERVAL,
-                self.update_scale_cb)
+    # def scale_button_release_cb(self, widget, event):
+    #     # see seek.cstop_seek
+    #     widget.disconnect(self.changed_id)
+    #     self.changed_id = -1
+    #     self.button.set_sensitive(True)
+    #     if self.seek_timeout_id != -1:
+    #         gobject.source_remove(self.seek_timeout_id)
+    #         self.seek_timeout_id = -1
+    #     else:
+    #         gst.debug('released slider, setting back to playing')
+    #         if self.was_playing:
+    #             self.player.play()
+    #     if self.update_id != -1:
+    #         self.error('Had a previous update timeout id')
+    #     else:
+    #         self.update_id = gobject.timeout_add(self.UPDATE_INTERVAL,
+    #             self.update_scale_cb)
 
-    def update_scale_cb(self):
-        self.p_position, self.p_duration = self.player.query_position()
-        if self.p_position != gst.CLOCK_TIME_NONE:
-            value = self.p_position * 100.0 / self.p_duration
-            self.adjustment.set_value(value)
-        return True
+    # def update_scale_cb(self):
+    #     self.p_position, self.p_duration = self.player.query_position()
+    #     if self.p_position != gst.CLOCK_TIME_NONE:
+    #         value = self.p_position * 100.0 / self.p_duration
+    #         self.adjustment.set_value(value)
+    #     return True
+
 
 class VeeJay(object):
     """
