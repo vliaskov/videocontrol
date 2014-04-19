@@ -80,7 +80,10 @@ def load_from_file(config_file_path=None):
         config_file_path = os.path.expanduser("~/.videocontrol")
     if os.path.exists(config_file_path):
         f = open(config_file_path)
-        data = json.load(f)
+        try:
+            data = json.load(f)
+        except ValueError, e:
+            raise RuntimeError("Error parsing configuration file %s: %s" % (config_file_path, e))
         f.close()
         try:
             cues = data["cues"]
