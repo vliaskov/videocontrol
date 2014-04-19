@@ -94,7 +94,7 @@ def load_from_file(config_file_path=None):
 
 if __name__ == "__main__":
     # Just to test it quickly
-    fname = "config.json"
+    fname = "sample_config.json"
     config = load_from_file(fname)
     print(str(config))
 
