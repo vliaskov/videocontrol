@@ -1,0 +1,231 @@
+{
+    "fullscreen": true,
+    "cues":
+    [
+        {
+            "identifier": "0",
+            "shortcut": "0",
+            "comment": "Black.",
+            "fadein": 0.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/black.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "1",
+            "shortcut": "a",
+            "comment": "Texte - image fixe",
+            "fadein": 0.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/bull_leaping.mov",
+            "after" : "loop"
+        },
+        {
+            "identifier": "2",
+            "shortcut": "b",
+            "comment": "Texte - image fixe",
+            "fadein": 10.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/lorrain_the_abduction.mov",
+            "after" : "loop"
+        },
+        {
+            "identifier": "3.1",
+            "shortcut": "c",
+            "comment": "1er récitatif. Verre d'eau fixe, lueur bleue. 1m20",
+            "fadein": 10.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/verre_fixe.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "3.2",
+            "shortcut": "d",
+            "comment": "1er Air. Verre d'eau bleu. xxx ralenti 2x. 3m15. xxx pas sur du clip verre_bleu.mov?",
+            "fadein": 1.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/verre_fixe_rouge.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "4.1",
+            "shortcut": "e",
+            "comment": "2e récitatif. Lys flou - net - flou. 1m20",
+            "fadein": 1.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/lys_flou_net.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "4.2",
+            "shortcut": "f",
+            "comment": "2e Air. Horizon bleu ralenti 2x. 3m15",
+            "fadein": 1.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/horizon_bleu.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "5.1",
+            "shortcut": "g",
+            "comment": "Roche. xxx ralenti 2x. 1m15",
+            "fadein": 1.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/roche.mov",
+            "after" : "loop"
+        },
+        {
+            "identifier": "5.2",
+            "shortcut": "h",
+            "comment": "Drap beige. xxx ralenti 2x",
+            "fadein": 20.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/drap_beige.mov",
+            "after" : "loop"
+        },
+        {
+            "identifier": "6",
+            "shortcut": "i",
+            "comment": "(Musique)",
+            "fadein": 15.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/arabian_nights.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "7",
+            "shortcut": "j",
+            "comment": "Black. Sur s'accordent.",
+            "fadein": 2.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/black.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "8",
+            "shortcut": "k",
+            "comment": "Taureaux. Elle s'asseoit.",
+            "fadein": 5.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/taureaux.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "9.1",
+            "shortcut": "l",
+            "comment": "Petales de rose. Ralenti 2x. 8m20. xxx a ralentir",
+            "fadein": 5.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/petales_de_rose.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "9.2",
+            "shortcut": "m",
+            "comment": "Fumee ralenti 2x. Step roule et se reveille. xxx a ralentir. 1m30",
+            "fadein": 10.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/fumee.mov",
+            "after" : "loop"
+        },
+        {
+            "identifier": "9.3",
+            "shortcut": "n",
+            "comment": "Coquillage flou - net",
+            "fadein": 10.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/coquillages_fou_net.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "9.4",
+            "shortcut": "o",
+            "comment": "Eau scintillante. - xxx: todo: lent... fullspeed vers 40s. 2m+",
+            "fadein": 10.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/eau_scintillante.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "9.5.1",
+            "shortcut": "p",
+            "comment": "Debut lumiere verticale. 35s",
+            "fadein": 0.5,
+            "action": "play_video",
+            "video_file": "~/europa_clips/debut_lumiere_verticale.mov",
+            "after" : "loop"
+        },
+        {
+            "identifier": "9.5.2",
+            "shortcut": "q",
+            "comment": "Lumiere verticale rouge. (colorant dans l'eau) 1m00",
+            "fadein": 0.5,
+            "action": "play_video",
+            "video_file": "~/europa_clips/lumiere_verticale_rouge.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "9.6",
+            "shortcut": "r",
+            "comment": "Colorant bleu-vert fonce voluptueux. (end of dream) 1m15+",
+            "fadein": 5.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/bleu_voluptueux.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "9.7",
+            "shortcut": "s",
+            "comment": "Petales deja tombees. Fixe.",
+            "fadein": 0.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/rose_fixe.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "9.8",
+            "shortcut": "t",
+            "comment": "Soufle sur les petales puis flou. 1m20",
+            "fadein": 0.5,
+            "action": "play_video",
+            "video_file": "~/europa_clips/rose_souffle.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "9.9",
+            "shortcut": "u",
+            "comment": "Chainette ralenti 2x. 1m20+",
+            "fadein": 2.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/chainette.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "10",
+            "shortcut": "v",
+            "comment": "Chainette fixe.",
+            "fadein": 2.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/chainette.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "11",
+            "shortcut": "w",
+            "comment": "Colorant bleu qui monte. Pale lumineux. xxx upside-down. 1m00+",
+            "fadein": 10.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/bleu_espoir.mov",
+            "after" : "freeze"
+        },
+        {
+            "identifier": "12",
+            "shortcut": "x",
+            "comment": "black",
+            "fadein": 5.0,
+            "action": "play_video",
+            "video_file": "~/europa_clips/black.mov",
+            "after" : "freeze"
+        },
+    ]
+}

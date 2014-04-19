@@ -1,0 +1,2 @@
+#!/usr/bin/env lunch
+add_command("~/src/videocontrol/videocontrol ~/src/videocontrol/examples/europa/cues.json")
