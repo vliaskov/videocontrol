@@ -43,13 +43,18 @@ DEFAULT_CONFIG_FILE = "~/.videocontrol"
 
 def run():
     parser = optparse.OptionParser(usage="%prog [configuration file name]", version=str(__version__))
+    parser.add_option("-c", "--config-file", type="string", help="Specifies the JSON config file. You can also simply specify the config file as the first argument.")
+    parser.add_option("-v", "--verbose", action="store_true", help="Makes the logging output verbose.")
+    parser.add_option("-f", "--fullscreen", action="store_true", help="Fullscreen output window.")
     (options, args) = parser.parse_args()
     
     app = gui.PlayerApp()
 
     # Parse config file name:
     config_file = None
-    if len(args) >= 1:
+    if options.config_file:
+        config_file = options.config_file
+    elif len(args) >= 1:
         config_file = args[0]
     else:
         config_file = os.path.expanduser(DEFAULT_CONFIG_FILE)
@@ -61,6 +66,12 @@ def run():
     except RuntimeError, e:
         print(e)
         sys.exit(1)
+
+    if options.verbose:
+        configuration.verbose = True
+    if options.fullscreen:
+        configuration.fullscreen = True
+
     vj = gui.VeeJay(app, app.player, configuration)
     try:
         vj.play_next_cue()
@@ -69,6 +80,8 @@ def run():
         sys.exit(1)
 
     app.window.show_all()
+    if configuration.fullscreen:
+        app.toggle_fullscreen()
     try:
         reactor.run()
     except KeyboardInterrupt:

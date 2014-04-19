@@ -29,6 +29,8 @@ class Configuration(object):
     Mostly contains the cue list.
     """
     def __init__(self):
+        self.verbose = False
+        self.fullscreen = False
         self.cues = []
 
     def __str__(self):
@@ -91,6 +93,16 @@ def load_from_file(config_file_path=None):
             raise RuntimeError("Error parsing configuration file %s: %s" % (config_file_path, e))
         except KeyError, e:
             raise RuntimeError("Error parsing configuration file %s: %s" % (config_file_path, e))
+
+        try:
+            ret.verbose = bool(data["verbose"])
+        except KeyError:
+            print("No key %s key in config file" % ("verbose"))
+
+        try:
+            ret.fullscreen = bool(data["fullscreen"])
+        except KeyError:
+            print("No key %s key in config file" % ("fullscreen"))
     else:
         raise RuntimeError("Configuration file path doesn't exist: %s" % (config_file_path))
     return ret
