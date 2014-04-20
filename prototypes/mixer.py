@@ -13,24 +13,40 @@ class GTK_Main:
     Main window.
     """
     def __init__(self):
+        # Window
         window = gtk.Window(gtk.WINDOW_TOPLEVEL)
         window.set_title("Mpeg2-Player")
         window.set_default_size(500, 400)
         window.connect("destroy", gtk.main_quit, "WM destroy")
+
+        # VBox
         vbox = gtk.VBox()
         window.add(vbox)
+
+        # HBox
         hbox = gtk.HBox()
         vbox.pack_start(hbox, False)
+
+        # Entry
         self.entry = gtk.Entry()
         hbox.add(self.entry)
+
+        # Button
         self.button = gtk.Button("Start")
         hbox.pack_start(self.button, False)
-        self.button.connect("clicked", self.start_stop)
+        self.button.connect("clicked", self._start_button_clicked_cb)
+
+        # DrawingArea
         self.movie_window = gtk.DrawingArea()
         vbox.add(self.movie_window)
         window.show_all()
         
+        # Pipeline
         self.player = gst.Pipeline("player")
+
+        # filesrc ! mpegdemux ! mpeg2dec ! videomixer ! audiovideosink ! queue ! ffmpegcolorspace ! videobox
+        #         ! mad ! audioconvert autoaudiosink ! 
+        # filesrc ! pngdec ! alphacolor ! 
         source = gst.element_factory_make("filesrc", "file-source")
         demuxer = gst.element_factory_make("mpegdemux", "demuxer")
         demuxer.connect("pad-added", self.demuxer_callback)
@@ -54,6 +70,7 @@ class GTK_Main:
         self.player.add(source, demuxer, self.video_decoder, png_decoder, png_source, mixer,
             self.audio_decoder, audioconv, audiosink, videosink, self.queuea, self.queuev,
             ffmpeg1, ffmpeg2, ffmpeg3, videobox, alphacolor)
+
         gst.element_link_many(source, demuxer)
         gst.element_link_many(self.queuev, self.video_decoder, ffmpeg1, mixer, ffmpeg2, videosink)
         gst.element_link_many(png_source, png_decoder, alphacolor, ffmpeg3, videobox, mixer)
@@ -62,15 +79,15 @@ class GTK_Main:
         bus = self.player.get_bus()
         bus.add_signal_watch()
         bus.enable_sync_message_emission()
-        bus.connect("message", self.on_message)
-        bus.connect("sync-message::element", self.on_sync_message)
+        bus.connect("message", self._pipeline_bus_message_cb)
+        bus.connect("sync-message::element", self._pipeline_bus_sync_message_cb)
         
         videobox.set_property("border-alpha", 0)
         videobox.set_property("alpha", 0.5)
         videobox.set_property("left", -10)
         videobox.set_property("top", -10)
         
-    def start_stop(self, w):
+    def _start_button_clicked_cb(self, w):
         if self.button.get_label() == "Start":
             filepath = self.entry.get_text()
             if os.path.isfile(filepath):
@@ -81,7 +98,7 @@ class GTK_Main:
             self.player.set_state(gst.STATE_NULL)
             self.button.set_label("Start")
                         
-    def on_message(self, bus, message):
+    def _pipeline_bus_message_cb(self, bus, message):
         t = message.type
         if t == gst.MESSAGE_EOS:
             self.player.set_state(gst.STATE_NULL)
@@ -92,7 +109,7 @@ class GTK_Main:
             self.player.set_state(gst.STATE_NULL)
             self.button.set_label("Start")
     
-    def on_sync_message(self, bus, message):
+    def _pipeline_bus_sync_message_cb(self, bus, message):
         if message.structure is None:
             return
         message_name = message.structure.get_name()
