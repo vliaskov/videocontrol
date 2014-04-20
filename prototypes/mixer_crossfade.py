@@ -7,16 +7,17 @@ import gobject
 import pygst
 pygst.require("0.10")
 import gst
+import random
 
-class GTK_Main:
+class MainWindowCreator(object):
     """
     Main window.
     """
     def __init__(self):
         # Window
         window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-        window.set_title("Mpeg2-Player")
-        window.set_default_size(500, 400)
+        window.set_title("Video mixer")
+        window.set_default_size(1280, 720)
         window.connect("destroy", gtk.main_quit, "WM destroy")
 
         # VBox
@@ -47,88 +48,93 @@ class GTK_Main:
         # filesrc ! mpegdemux ! mpeg2dec ! videomixer ! audiovideosink ! queue ! ffmpegcolorspace ! videobox
         #         ! mad ! audioconvert autoaudiosink ! 
         # filesrc ! pngdec ! alphacolor ! 
-        source = gst.element_factory_make("filesrc", "file-source")
-        demuxer = gst.element_factory_make("mpegdemux", "demuxer")
-        demuxer.connect("pad-added", self.demuxer_callback)
-        self.video_decoder = gst.element_factory_make("mpeg2dec", "video-decoder")
-        png_decoder = gst.element_factory_make("pngdec", "png-decoder")
-        png_source = gst.element_factory_make("filesrc", "png-source")
-        png_source.set_property("location", "tvlogo.png")
-        mixer = gst.element_factory_make("videomixer", "mixer")
-        self.audio_decoder = gst.element_factory_make("mad", "audio-decoder")
-        audioconv = gst.element_factory_make("audioconvert", "converter")
-        audiosink = gst.element_factory_make("autoaudiosink", "audio-output")
-        videosink = gst.element_factory_make("autovideosink", "video-output")
-        self.queuea = gst.element_factory_make("queue", "queuea")
-        self.queuev = gst.element_factory_make("queue", "queuev")
-        ffmpeg1 = gst.element_factory_make("ffmpegcolorspace", "ffmpeg1")
-        ffmpeg2 = gst.element_factory_make("ffmpegcolorspace", "ffmpeg2")
-        ffmpeg3 = gst.element_factory_make("ffmpegcolorspace", "ffmpeg3")
-        videobox = gst.element_factory_make("videobox", "videobox")
-        alphacolor = gst.element_factory_make("alphacolor", "alphacolor")
-        
-        self.player.add(source, demuxer, self.video_decoder, png_decoder, png_source, mixer,
-            self.audio_decoder, audioconv, audiosink, videosink, self.queuea, self.queuev,
-            ffmpeg1, ffmpeg2, ffmpeg3, videobox, alphacolor)
+        source0 = gst.element_factory_make("videotestsrc", "source0")
+        source1 = gst.element_factory_make("videotestsrc", "source1")
+        source0.set_property("pattern", 0)
+        source1.set_property("pattern", 1)
 
-        gst.element_link_many(source, demuxer)
-        gst.element_link_many(self.queuev, self.video_decoder, ffmpeg1, mixer, ffmpeg2, videosink)
-        gst.element_link_many(png_source, png_decoder, alphacolor, ffmpeg3, videobox, mixer)
-        gst.element_link_many(self.queuea, self.audio_decoder, audioconv, audiosink)
+        alpha0 = gst.element_factory_make("alpha", "alpha0")
+        alpha1 = gst.element_factory_make("alpha", "alpha1")
+        # queue0 = gst.element_factory_make("queue", "queue0")
+        # queue1 = gst.element_factory_make("queue", "queue1")
+        mixer = gst.element_factory_make("videomixer", "mixer")
+        videoconvert0 = gst.element_factory_make("ffmpegcolorspace", "videoconvert0")
+        videosink = gst.element_factory_make("autovideosink", "video-output")
         
+        self.player.add(
+            source0, source1,
+            # queue0, queue1,
+            alpha0, alpha1,
+            mixer,
+            videoconvert0,
+            videosink)
+
+        gst.element_link_many(source0, alpha0) #, queue0)
+        gst.element_link_many(source1, alpha1) #, queue1)
+        #gst.element_link_many(videoconvert0, mixer, videosink) # queue0
+        # queue1.link(mixer) # , "sink_1")
+        alpha0.link_pads("src", mixer, "sink_0")
+        alpha1.link_pads("src", mixer, "sink_1")
+
+        gst.element_link_many(mixer, videoconvert0, videosink)
+
         bus = self.player.get_bus()
         bus.add_signal_watch()
         bus.enable_sync_message_emission()
         bus.connect("message", self._pipeline_bus_message_cb)
         bus.connect("sync-message::element", self._pipeline_bus_sync_message_cb)
         
-        videobox.set_property("border-alpha", 0)
-        videobox.set_property("alpha", 0.5)
-        videobox.set_property("left", -10)
-        videobox.set_property("top", -10)
+        alpha0.set_property("alpha", 0.5)
+        alpha1.set_property("alpha", 0.5)
+        mixer.set_property("background", 1)
+
+        self.player.set_state(gst.STATE_PLAYING)
+
+        self.alpha0 = alpha0
+        self.alpha1 = alpha1
         
     def _start_button_clicked_cb(self, w):
         if self.button.get_label() == "Start":
-            filepath = self.entry.get_text()
-            if os.path.isfile(filepath):
-                self.button.set_label("Stop")
-                self.player.get_by_name("file-source").set_property("location", filepath)
-                self.player.set_state(gst.STATE_PLAYING)
+            pass
+            alpha = random.random() # in the range [0.0, 0.1]
+            self.alpha0.set_property("alpha", alpha)
+            self.alpha1.set_property("alpha", 1.0 - alpha)
+
+            # filepath = self.entry.get_text()
+            # if os.path.isfile(filepath):
+            #     self.button.set_label("Stop")
+            #     self.player.get_by_name("file-source").set_property("location", filepath)
+            #     self.player.set_state(gst.STATE_PLAYING)
         else:
-            self.player.set_state(gst.STATE_NULL)
-            self.button.set_label("Start")
+            # self.player.set_state(gst.STATE_NULL)
+            # self.button.set_label("Start")
+            pass
                         
     def _pipeline_bus_message_cb(self, bus, message):
-        t = message.type
-        if t == gst.MESSAGE_EOS:
-            self.player.set_state(gst.STATE_NULL)
-            self.button.set_label("Start")
-        elif t == gst.MESSAGE_ERROR:
-            err, debug = message.parse_error()
-            print "Error: %s" % err, debug
-            self.player.set_state(gst.STATE_NULL)
-            self.button.set_label("Start")
+        pass
+        # t = message.type
+        # if t == gst.MESSAGE_EOS:
+        #     self.player.set_state(gst.STATE_NULL)
+        #     self.button.set_label("Start")
+        # elif t == gst.MESSAGE_ERROR:
+        #     err, debug = message.parse_error()
+        #     print "Error: %s" % err, debug
+        #     self.player.set_state(gst.STATE_NULL)
+        #     self.button.set_label("Start")
     
     def _pipeline_bus_sync_message_cb(self, bus, message):
         if message.structure is None:
             return
         message_name = message.structure.get_name()
         if message_name == "prepare-xwindow-id":
+            print("prepare-xwindow-id... force-aspect-ratio = True, and set_xwindow_id")
             imagesink = message.src
             imagesink.set_property("force-aspect-ratio", True)
             imagesink.set_xwindow_id(self.movie_window.window.xid)
     
-    def demuxer_callback(self, demuxer, pad):
-        if pad.get_property("template").name_template == "video_%02d":
-            queuev_pad = self.queuev.get_pad("sink")
-            pad.link(queuev_pad)
-        elif pad.get_property("template").name_template == "audio_%02d":
-            queuea_pad = self.queuea.get_pad("sink")
-            pad.link(queuea_pad)
-        
 
 if __name__ == "__main__":
-    GTK_Main()
+    w = MainWindowCreator()
     gtk.gdk.threads_init()
     gtk.main()
 
