@@ -116,7 +116,7 @@
             "comment": "Petales de rose. Ralenti 2x. 8m20. xxx a ralentir",
             "fadein": 5.0,
             "action": "play_video",
-            "video_file": "~/europa_clips/petales_de_rose_slow_cut2.mov",
+            "video_file": "~/europa_clips/petales_de_rose_slow.mov",
             "after" : "freeze"
         },
         {
