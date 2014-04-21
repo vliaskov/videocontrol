@@ -28,8 +28,8 @@ Main GUI of the application.
 """
 # Import order matters !!!
 import os
-import sys
-import glob
+#import sys
+#import glob
 #from twisted.internet import gtk2reactor
 #gtk2reactor.install() # has to be done before importing reactor and gtk
 from twisted.internet import reactor
@@ -56,7 +56,7 @@ def call_callbacks(callbacks, *args, **kwargs):
         c(*args, **kwargs)
 
 
-class GstPlayer:
+class VideoPlayer(object):
     """
     Video player.
     """
@@ -251,7 +251,7 @@ class PlayerApp(object):
         # self.hscale = hscale
         
         # player
-        self.player = GstPlayer(self.videowidget)
+        self.player = VideoPlayer(self.videowidget)
         self.player.eos_callbacks.append(self.on_video_eos)
         
         # delayed calls using gobject. Update the slider.
@@ -264,6 +264,20 @@ class PlayerApp(object):
         self.window.connect("key-press-event", self.on_key_pressed)
         self.window.connect("window-state-event", self.on_window_state_event)
         self.window.connect('delete-event', self.on_delete_event)
+
+    def get_video_player(self):
+        """
+        Getter.
+        So that we avoid public attributes.
+        """
+        return self.player
+
+    def get_gtk_window(self):
+        """
+        Getter.
+        So that we avoid public attributes.
+        """
+        return self.window
 
     def on_video_eos(self):
         """
@@ -502,7 +516,7 @@ class VeeJay(object):
         Schedules to be called again later.
         """
         ret = False
-        prev = -1
+        #prev = -1
         _next = 0
         cues = self.get_cues()
         if self._current_cue_index >= (len(cues) - 1):

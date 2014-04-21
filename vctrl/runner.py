@@ -33,7 +33,7 @@ import optparse
 from twisted.internet import gtk2reactor
 gtk2reactor.install() # has to be done before importing reactor and gtk
 from twisted.internet import reactor
-import gobject
+#import gobject
 from vctrl import __version__
 from vctrl import gui
 from vctrl import config
@@ -48,7 +48,7 @@ def run():
     parser.add_option("-f", "--fullscreen", action="store_true", help="Fullscreen output window.")
     (options, args) = parser.parse_args()
     
-    app = gui.PlayerApp()
+    player_app = gui.PlayerApp()
 
     # Parse config file name:
     config_file = None
@@ -58,8 +58,9 @@ def run():
         config_file = args[0]
     else:
         config_file = os.path.expanduser(DEFAULT_CONFIG_FILE)
-        if os.path.exists(config_file):
-            config_file = check_dir
+        # ???
+        # if os.path.exists(config_file):
+        #     config_file = check_dir
     
     try:
         configuration = config.load_from_file(config_file)
@@ -72,16 +73,16 @@ def run():
     if options.fullscreen:
         configuration.fullscreen = True
 
-    vj = gui.VeeJay(app, app.player, configuration)
+    vj = gui.VeeJay(player_app, player_app.get_video_player(), configuration)
     try:
         vj.play_next_cue()
     except RuntimeError, e:
         print("ERROR playing next cue: %s" % (e))
         sys.exit(1)
 
-    app.window.show_all()
+    player_app.get_gtk_window().show_all()
     if configuration.fullscreen:
-        app.toggle_fullscreen()
+        player_app.toggle_fullscreen()
     try:
         reactor.run()
     except KeyboardInterrupt:
