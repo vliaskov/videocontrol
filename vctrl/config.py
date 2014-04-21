@@ -60,6 +60,10 @@ def parse_one_cue(d):
                 raise RuntimeError("Invalid value for key %s: %s" % (k, e))
 
             ret.__dict__[k] = v
+            if k == "video_file":
+                video_path = os.path.expanduser(v)
+                if not os.path.exists(video_path):
+                    print("Warning: Video file not found: %s" % (video_path))
             # Validate more:
             if k == "action":
                 if v not in ["play_video", "black"]:
