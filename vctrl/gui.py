@@ -62,11 +62,34 @@ class VideoPlayer(object):
     """
     def __init__(self, videowidget):
         self._is_player0_playing = False
-        self._player0 = gst.element_factory_make("playbin", "_player0")
+        self._pipeline = gst.Pipeline("pipeline")
+
+        #self._bin0 = gst.Bin("bin0")
+        self._filesrc0 = gst.element_factory_make("filesrc", "_filesrc0")
+        decodebin0 = gst.element_factory_make("decodebin", "_decodebin0")
+        #self._bin0.add_many(self._filesrc0)
+        #self._bin0.add(decodebin0)
+        self._pipeline.add_many(self._filesrc0, decodebin0)
+        alpha0 = gst.element_factory_make("alpha", "alpha0")
+        mixer = gst.element_factory_make("videomixer", "mixer")
+        videoconvert0 = gst.element_factory_make("ffmpegcolorspace", "videoconvert0")
+        videosink = gst.element_factory_make("xvimagesink", "imagesink0")
+        self._pipeline.add_many(alpha0, mixer, videoconvert0, videosink)
+        # self._bin0, 
+        gst.element_link_many(self._filesrc0, decodebin0)
+        gst.element_link_many(alpha0, mixer, videoconvert0, videosink)
+
+        def _decodebin_pad_added_cb(decoder, pad, target):
+            tpad = target.get_compatible_pad(pad)
+            if tpad:
+                pad.link(tpad)
+
+        decodebin0.connect("pad-added", _decodebin_pad_added_cb, alpha0)
+
         self._videowidget = videowidget
         self.eos_callbacks = [] 
 
-        bus = self._player0.get_bus()
+        bus = self._pipeline.get_bus()
         bus.enable_sync_message_emission()
         bus.add_signal_watch()
         bus.connect('sync-message::element', self.on_sync_message)
@@ -93,6 +116,7 @@ class VideoPlayer(object):
             call_callbacks(self.eos_callbacks)
             self._is_player0_playing = False
         elif t == gst.MESSAGE_EOS:
+            print("eos")
             call_callbacks(self.eos_callbacks)
             self._is_player0_playing = False
             if self._is_player0_looping:
@@ -109,10 +133,12 @@ class VideoPlayer(object):
         if use_crossfade:
             pass
             # TODO
-        else:
-            self._player0.set_property('uri', location)
-            if was_playing:
-                self.play()
+        #else:
+        #self._pipeline.set_state(gst.STATE_PAUSED)
+        self._filesrc0.set_property("location", location)
+        #self._pipeline.set_state(gst.STATE_PLAYING)
+        if was_playing:
+            self.play()
 
     # def query_position(self):
     #     "Returns a (position, duration) tuple"
@@ -135,29 +161,30 @@ class VideoPlayer(object):
             gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_ACCURATE,
             gst.SEEK_TYPE_SET, location,
             gst.SEEK_TYPE_NONE, 0)
-        res = self._player0.send_event(event)
+        res = self._pipeline.send_event(event)
         if res:
             # gst.info("setting new stream time to 0")
-            self._player0.set_new_stream_time(0L)
+            self._pipeline.set_new_stream_time(0L)
         else:
             gst.error("seek to %r failed" % location)
 
     def pause(self):
         gst.info("pausing _player0")
-        self._player0.set_state(gst.STATE_PAUSED)
+        self._pipeline.set_state(gst.STATE_PAUSED)
         self._is_player0_playing = False
 
     def play(self):
-        gst.info("playing _player0")
-        self._player0.set_state(gst.STATE_PLAYING)
+        #gst.info("playing _player0")
+        print("playing _player0")
+        self._pipeline.set_state(gst.STATE_PLAYING)
         self._is_player0_playing = True
         
     def stop(self):
-        self._player0.set_state(gst.STATE_NULL)
+        self._pipeline.set_state(gst.STATE_NULL)
         gst.info("stopped _player0")
 
     def get_state(self, timeout=1):
-        return self._player0.get_state(timeout=timeout)
+        return self._pipeline.get_state(timeout=timeout)
 
     def is_playing(self):
         return self._is_player0_playing
@@ -495,14 +522,15 @@ class VeeJay(object):
             file_path = os.path.expanduser(file_path)
             if os.path.exists(file_path):
                 # print("Playing file %s" % (file_path))
-                uri = "file://%s" % (file_path)
-                if gst.uri_is_valid(uri):
-                    self._video_player.set_location(uri)
-                    ret = True
-                else:
-                    msg = "Error: Invalid URI: %s\n" % (uri)
-                    raise RuntimeError(msg)
-                    #print(msg)
+                #uri = "file://%s" % (file_path)
+                uri = file_path
+                #if gst.uri_is_valid(uri):
+                self._video_player.set_location(uri)
+                ret = True
+                #else:
+                #    msg = "Error: Invalid URI: %s\n" % (uri)
+                #    raise RuntimeError(msg)
+                #    #print(msg)
             else:
                 msg = "No such video file: %s\n" % (file_path)
                 raise RuntimeError(msg)

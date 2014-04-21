@@ -35,6 +35,7 @@ gtk2reactor.install() # has to be done before importing reactor and gtk
 from twisted.internet import reactor
 #import gobject
 from vctrl import __version__
+# Must import gui after the gtk2reactor reactor has been installed
 from vctrl import gui
 from vctrl import config
 
