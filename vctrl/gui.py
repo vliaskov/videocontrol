@@ -63,7 +63,7 @@ class VideoPlayer(object):
     def __init__(self, videowidget):
         self._is_player0_playing = False
         self._player0 = gst.element_factory_make("playbin", "_player0")
-        self.videowidget = videowidget
+        self._videowidget = videowidget
         self.eos_callbacks = [] 
 
         bus = self._player0.get_bus()
@@ -81,7 +81,7 @@ class VideoPlayer(object):
             # Sync with the X server before giving the X-id to the sink
             gtk.gdk.threads_enter()
             gtk.gdk.display_get_default().sync()
-            self.videowidget.set_sink(message.src)
+            self._videowidget.set_sink(message.src)
             message.src.set_property('force-aspect-ratio', True)
             gtk.gdk.threads_leave()
             
@@ -214,9 +214,9 @@ class PlayerApp(object):
         # videowidget and button box
         vbox = gtk.VBox()
         self.window.add(vbox)
-        self.videowidget = VideoWidget()
-        self.videowidget.connect_after('realize', self.play_toggled)
-        vbox.pack_start(self.videowidget)
+        self._video_widget = VideoWidget()
+        self._video_widget.connect_after('realize', self.play_toggled)
+        vbox.pack_start(self._video_widget)
 
         # hbox = gtk.HBox()
         # vbox.pack_start(hbox, fill=False, expand=False)
@@ -251,7 +251,7 @@ class PlayerApp(object):
         # self.hscale = hscale
         
         # player
-        self._video_player = VideoPlayer(self.videowidget)
+        self._video_player = VideoPlayer(self._video_widget)
         self._video_player.eos_callbacks.append(self.on_video_eos)
         
         # delayed calls using gobject. Update the slider.
@@ -330,10 +330,10 @@ class PlayerApp(object):
         """
         if self.is_fullscreen:
             self.window.unfullscreen()
-            self._showhideWidgets(self.videowidget, False)
+            self._showhideWidgets(self._video_widget, False)
         else:
             self.window.fullscreen()
-            self._showhideWidgets(self.videowidget, True)
+            self._showhideWidgets(self._video_widget, True)
 
     def on_window_state_event(self, widget, event):
         """
