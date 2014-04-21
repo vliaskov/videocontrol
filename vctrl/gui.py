@@ -28,7 +28,7 @@ Main GUI of the application.
 """
 # Import order matters !!!
 import os
-#import sys
+import sys
 #import glob
 #from twisted.internet import gtk2reactor
 #gtk2reactor.install() # has to be done before importing reactor and gtk
@@ -61,23 +61,35 @@ class VideoPlayer(object):
     Video player.
     """
     def __init__(self, videowidget):
-        self._is_player0_playing = False
+        self._videosource_index = 0
+
+        self._is_playing = False
+        # Pipeline
         self._pipeline = gst.Pipeline("pipeline")
 
-        #self._bin0 = gst.Bin("bin0")
+        # Source 0:
         self._filesrc0 = gst.element_factory_make("filesrc", "_filesrc0")
         decodebin0 = gst.element_factory_make("decodebin", "_decodebin0")
-        #self._bin0.add_many(self._filesrc0)
-        #self._bin0.add(decodebin0)
-        self._pipeline.add_many(self._filesrc0, decodebin0)
         alpha0 = gst.element_factory_make("alpha", "alpha0")
+        self._pipeline.add_many(self._filesrc0, decodebin0, alpha0)
+
+        # Source 0:
+        self._filesrc1 = gst.element_factory_make("filesrc", "_filesrc1")
+        decodebin1 = gst.element_factory_make("decodebin", "_decodebin1")
+        alpha1 = gst.element_factory_make("alpha", "alpha1")
+        self._pipeline.add_many(self._filesrc1, decodebin1, alpha1)
+
+        # Mixer:
         mixer = gst.element_factory_make("videomixer", "mixer")
         videoconvert0 = gst.element_factory_make("ffmpegcolorspace", "videoconvert0")
         videosink = gst.element_factory_make("xvimagesink", "imagesink0")
-        self._pipeline.add_many(alpha0, mixer, videoconvert0, videosink)
-        # self._bin0, 
+        self._pipeline.add_many(mixer, videoconvert0, videosink)
+
+        # Linking:
         gst.element_link_many(self._filesrc0, decodebin0)
+        gst.element_link_many(self._filesrc1, decodebin1)
         gst.element_link_many(alpha0, mixer, videoconvert0, videosink)
+        alpha1.link(mixer) # _pads("src", mixer, mixer.get_request_pad("sink_1"))
 
         def _decodebin_pad_added_cb(decoder, pad, target):
             tpad = target.get_compatible_pad(pad)
@@ -85,16 +97,34 @@ class VideoPlayer(object):
                 pad.link(tpad)
 
         decodebin0.connect("pad-added", _decodebin_pad_added_cb, alpha0)
+        decodebin1.connect("pad-added", _decodebin_pad_added_cb, alpha1)
 
+        # Manage Gtk+ widget:
         self._videowidget = videowidget
         self.eos_callbacks = [] 
 
+        # Handle looping:
         bus = self._pipeline.get_bus()
         bus.enable_sync_message_emission()
         bus.add_signal_watch()
         bus.connect('sync-message::element', self.on_sync_message)
         bus.connect('message', self.on_message)
         self._is_player0_looping = True
+
+    def load_default_files(self, file0, file1):
+        """
+        You must load some video file, otherwise there will be errors.
+        """
+        print("load_default_files: %s %s" % (file0, file1))
+        self.set_location(file0)
+        self.set_location(file1)
+
+    def get_videosource_index(self):
+        return self._videosource_index
+
+    def change_videosource_index(self):
+        self._videosource_index = (self._videosource_index + 1) % 2
+        return self._videosource_index
 
     def on_sync_message(self, bus, message):
         print "on_sync_message", bus, message
@@ -114,17 +144,17 @@ class VideoPlayer(object):
             err, debug = message.parse_error()
             print "Error: %s" % err, debug
             call_callbacks(self.eos_callbacks)
-            self._is_player0_playing = False
+            self._is_playing = False
         elif t == gst.MESSAGE_EOS:
             print("eos")
             call_callbacks(self.eos_callbacks)
-            self._is_player0_playing = False
+            self._is_playing = False
             if self._is_player0_looping:
                 self.play()
 
     def set_location(self, location, fade_duration=0.0):
         was_playing = False
-        if self._is_player0_playing:
+        if self._is_playing:
             was_playing = True
             self.stop()
         use_crossfade = False
@@ -135,7 +165,15 @@ class VideoPlayer(object):
             # TODO
         #else:
         #self._pipeline.set_state(gst.STATE_PAUSED)
-        self._filesrc0.set_property("location", location)
+        self.change_videosource_index()
+        videosource_index = self.get_videosource_index()
+
+        if videosource_index == 0:
+            self._filesrc0.set_property("location", location)
+        elif videosource_index == 1:
+            self._filesrc1.set_property("location", location)
+        else:
+            print("invalid video source index.")
         #self._pipeline.set_state(gst.STATE_PLAYING)
         if was_playing:
             self.play()
@@ -171,13 +209,13 @@ class VideoPlayer(object):
     def pause(self):
         gst.info("pausing _player0")
         self._pipeline.set_state(gst.STATE_PAUSED)
-        self._is_player0_playing = False
+        self._is_playing = False
 
     def play(self):
         #gst.info("playing _player0")
         print("playing _player0")
         self._pipeline.set_state(gst.STATE_PLAYING)
-        self._is_player0_playing = True
+        self._is_playing = True
         
     def stop(self):
         self._pipeline.set_state(gst.STATE_NULL)
@@ -187,7 +225,7 @@ class VideoPlayer(object):
         return self._pipeline.get_state(timeout=timeout)
 
     def is_playing(self):
-        return self._is_player0_playing
+        return self._is_playing
 
     
 class VideoWidget(gtk.DrawingArea):
@@ -316,6 +354,9 @@ class PlayerApp(object):
     def load_file(self, location):
         print("loading %s" % (location))
         self._video_player.set_location(location)
+
+    def set_default_files(self, file0, file1):
+        self._video_player.load_default_files(file0, file1)
 
     def on_delete_event(self, *args):
         self._video_player.stop()
@@ -484,6 +525,13 @@ class VeeJay(object):
         app.key_pressed_signal.connect(self._on_key_pressed_signal)
         self.clips = []
         self._current_cue_index = -1 # Initial non-existing cue
+        try:
+            app.set_default_files(
+                os.path.expanduser(self.get_cues()[0].video_file), 
+                os.path.expanduser(self.get_cues()[1].video_file)) # FIXME: assumes at least two items
+        except IndexError, e:
+            print(e)
+            sys.exit(1)
 
     def _on_key_pressed_signal(self, character):
         """
