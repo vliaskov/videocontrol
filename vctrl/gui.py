@@ -61,17 +61,17 @@ class VideoPlayer(object):
     Video player.
     """
     def __init__(self, videowidget):
-        self.playing = False
-        self.player = gst.element_factory_make("playbin", "player")
+        self._is_player0_playing = False
+        self._player0 = gst.element_factory_make("playbin", "_player0")
         self.videowidget = videowidget
         self.eos_callbacks = [] 
 
-        bus = self.player.get_bus()
+        bus = self._player0.get_bus()
         bus.enable_sync_message_emission()
         bus.add_signal_watch()
         bus.connect('sync-message::element', self.on_sync_message)
         bus.connect('message', self.on_message)
-        self.looping = True
+        self._is_player0_looping = True
 
     def on_sync_message(self, bus, message):
         print "on_sync_message", bus, message
@@ -91,16 +91,16 @@ class VideoPlayer(object):
             err, debug = message.parse_error()
             print "Error: %s" % err, debug
             call_callbacks(self.eos_callbacks)
-            self.playing = False
+            self._is_player0_playing = False
         elif t == gst.MESSAGE_EOS:
             call_callbacks(self.eos_callbacks)
-            self.playing = False
-            if self.looping:
+            self._is_player0_playing = False
+            if self._is_player0_looping:
                 self.play()
 
     def set_location(self, location, fade_duration=0.0):
         was_playing = False
-        if self.playing:
+        if self._is_player0_playing:
             was_playing = True
             self.stop()
         use_crossfade = False
@@ -110,18 +110,18 @@ class VideoPlayer(object):
             pass
             # TODO
         else:
-            self.player.set_property('uri', location)
+            self._player0.set_property('uri', location)
             if was_playing:
                 self.play()
 
     # def query_position(self):
     #     "Returns a (position, duration) tuple"
     #     try:
-    #         position, format = self.player.query_position(gst.FORMAT_TIME)
+    #         position, format = self._player0.query_position(gst.FORMAT_TIME)
     #     except:
     #         position = gst.CLOCK_TIME_NONE
     #     try:
-    #         duration, format = self.player.query_duration(gst.FORMAT_TIME)
+    #         duration, format = self._player0.query_duration(gst.FORMAT_TIME)
     #     except:
     #         duration = gst.CLOCK_TIME_NONE
     #     return (position, duration)
@@ -135,32 +135,32 @@ class VideoPlayer(object):
             gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_ACCURATE,
             gst.SEEK_TYPE_SET, location,
             gst.SEEK_TYPE_NONE, 0)
-        res = self.player.send_event(event)
+        res = self._player0.send_event(event)
         if res:
             # gst.info("setting new stream time to 0")
-            self.player.set_new_stream_time(0L)
+            self._player0.set_new_stream_time(0L)
         else:
             gst.error("seek to %r failed" % location)
 
     def pause(self):
-        gst.info("pausing player")
-        self.player.set_state(gst.STATE_PAUSED)
-        self.playing = False
+        gst.info("pausing _player0")
+        self._player0.set_state(gst.STATE_PAUSED)
+        self._is_player0_playing = False
 
     def play(self):
-        gst.info("playing player")
-        self.player.set_state(gst.STATE_PLAYING)
-        self.playing = True
+        gst.info("playing _player0")
+        self._player0.set_state(gst.STATE_PLAYING)
+        self._is_player0_playing = True
         
     def stop(self):
-        self.player.set_state(gst.STATE_NULL)
-        gst.info("stopped player")
+        self._player0.set_state(gst.STATE_NULL)
+        gst.info("stopped _player0")
 
     def get_state(self, timeout=1):
-        return self.player.get_state(timeout=timeout)
+        return self._player0.get_state(timeout=timeout)
 
     def is_playing(self):
-        return self.playing
+        return self._is_player0_playing
 
     
 class VideoWidget(gtk.DrawingArea):
@@ -251,8 +251,8 @@ class PlayerApp(object):
         # self.hscale = hscale
         
         # player
-        self.player = VideoPlayer(self.videowidget)
-        self.player.eos_callbacks.append(self.on_video_eos)
+        self._video_player = VideoPlayer(self.videowidget)
+        self._video_player.eos_callbacks.append(self.on_video_eos)
         
         # delayed calls using gobject. Update the slider.
         # self.update_id = -1
@@ -270,7 +270,7 @@ class PlayerApp(object):
         Getter.
         So that we avoid public attributes.
         """
-        return self.player
+        return self._video_player
 
     def get_gtk_window(self):
         """
@@ -283,19 +283,19 @@ class PlayerApp(object):
         """
         Called when the player calls its eos_callbacks
         """
-        self.player.seek(0L)
+        self._video_player.seek(0L)
         self.play_toggled()
 
     def load_file(self, location):
         print("loading %s" % (location))
-        self.player.set_location(location)
+        self._video_player.set_location(location)
 
     def on_delete_event(self, *args):
-        self.player.stop()
+        self._video_player.stop()
         reactor.stop()
     
     def quit(self):
-        self.player.stop()
+        self._video_player.stop()
         reactor.stop()
     
     def on_key_pressed(self, widget, event):
@@ -375,11 +375,11 @@ class PlayerApp(object):
         and also when other events occur.
         """
         #self.button.remove(self.button.child)
-        if self.player.is_playing():
-            self.player.pause()
+        if self._video_player.is_playing():
+            self._video_player.pause()
             #self.button.add(self.play_image)
         else:
-            self.player.play()
+            self._video_player.play()
             # if self.update_id == -1:
             #     self.update_id = gobject.timeout_add(self.UPDATE_INTERVAL, self.update_scale_cb)
             #self.button.add(self.pause_image)
@@ -396,9 +396,9 @@ class PlayerApp(object):
     #     # see seek.c:start_seek
     #     gst.debug('starting seek')
     #     self.button.set_sensitive(False)
-    #     self.was_playing = self.player.is_playing()
+    #     self.was_playing = self._video_player.is_playing()
     #     if self.was_playing:
-    #         self.player.pause()
+    #         self._video_player.pause()
     #     # don't timeout-update position during seek
     #     if self.update_id != -1:
     #         gobject.source_remove(self.update_id)
@@ -412,9 +412,9 @@ class PlayerApp(object):
     #     # see seek.c:seek_cb
     #     real = long(scale.get_value() * self.p_duration / 100) # in ns
     #     gst.debug('value changed, perform seek to %r' % real)
-    #     self.player.seek(real)
+    #     self._video_player.seek(real)
     #     # allow for a preroll
-    #     self.player.get_state(timeout=50*gst.MSECOND) # 50 ms
+    #     self._video_player.get_state(timeout=50*gst.MSECOND) # 50 ms
 
     # def scale_button_release_cb(self, widget, event):
     #     # see seek.cstop_seek
@@ -427,7 +427,7 @@ class PlayerApp(object):
     #     else:
     #         gst.debug('released slider, setting back to playing')
     #         if self.was_playing:
-    #             self.player.play()
+    #             self._video_player.play()
     #     if self.update_id != -1:
     #         self.error('Had a previous update timeout id')
     #     else:
@@ -435,7 +435,7 @@ class PlayerApp(object):
     #             self.update_scale_cb)
 
     # def update_scale_cb(self):
-    #     self.p_position, self.p_duration = self.player.query_position()
+    #     self.p_position, self.p_duration = self._video_player.query_position()
     #     if self.p_position != gst.CLOCK_TIME_NONE:
     #         value = self.p_position * 100.0 / self.p_duration
     #         self.adjustment.set_value(value)
@@ -448,10 +448,11 @@ class VeeJay(object):
     """
     def __init__(self, app, player, configuration):
         """
-        @param player: vctrl.gui.PlayerApp instance.
+        @param app: vctrl.gui.PlayerApp instance.
+        @param player: vctrl.gui.VideoPlayer instance.
         @param configuration: vctrl.config.Configuration instance.
         """
-        self.player = player
+        self._video_player = player
         self.configuration = configuration
         app.key_pressed_signal.connect(self._on_key_pressed_signal)
         self.clips = []
@@ -496,7 +497,7 @@ class VeeJay(object):
                 # print("Playing file %s" % (file_path))
                 uri = "file://%s" % (file_path)
                 if gst.uri_is_valid(uri):
-                    self.player.set_location(uri)
+                    self._video_player.set_location(uri)
                     ret = True
                 else:
                     msg = "Error: Invalid URI: %s\n" % (uri)
