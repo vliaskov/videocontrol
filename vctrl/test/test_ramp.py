@@ -35,9 +35,9 @@ class Test_02_Ramp(unittest.TestCase):
     """
     def test_01_jump_to(self):
         x = ramp.Ramp()
-        x.jump_to_(100.0)
+        x.jump_to(100.0)
         self.assertEqual(x.poll(now=0.1), 100.0)
-        x.jump_to_(200.0)
+        x.jump_to(200.0)
         self.assertEqual(x.poll(now=0.1), 200.0)
 
     def test_02_ramp_up(self):

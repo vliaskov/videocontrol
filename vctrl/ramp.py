@@ -52,7 +52,7 @@ class Ramp(object):
             now = time.time()
         return now >= self._end_time or self._duration <= 0.0001
 
-    def jump_to_(self, value, now=None):
+    def jump_to(self, value, now=None):
         if now is None:
             now = time.time()
         self._current = value

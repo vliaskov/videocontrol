@@ -33,6 +33,7 @@ import sys
 #from twisted.internet import gtk2reactor
 #gtk2reactor.install() # has to be done before importing reactor and gtk
 from twisted.internet import reactor
+from twisted.internet import task
 #import pygtk
 #pygtk.require('2.0')
 import gobject
@@ -44,6 +45,7 @@ import gst.interfaces
 import gtk
 gtk.gdk.threads_init()
 from vctrl import sig
+from vctrl import ramp
 
 ALNUMS = [chr(x) for x in range(ord("a"), ord("z") + 1)]
 ALNUMS.extend(["%s" % (x,) for x in range(0, 9)])
@@ -111,6 +113,28 @@ class VideoPlayer(object):
         bus.connect('message', self.on_message)
         self._is_player0_looping = True
 
+        # FIXME
+        #alpha0.set_property("alpha", 0.5)
+        alpha1.set_property("alpha", 0.0)
+        mixer.set_property("background", 1) # black
+        self._alpha1 = alpha1
+        
+        self._alpha_ramp = ramp.Ramp()
+        self._alpha_ramp.jump_to(0.0)
+        self._poll_ramp_looping_call = task.LoopingCall(self._poll_ramp)
+        self._poll_ramp_looping_call.start(1 / 30., now=False)
+
+    def _poll_ramp(self):
+        value = self._alpha_ramp.poll()
+        #print(value)
+        self.set_videosource_mix(value)
+
+    def set_videosource_mix(self, alpha):
+        """
+        @param alpha: alpha of the clip 1. [0, 1]
+        """        
+        self._alpha1.set_property("alpha", alpha)
+
     def load_default_files(self, file0, file1):
         """
         You must load some video file, otherwise there will be errors.
@@ -152,19 +176,25 @@ class VideoPlayer(object):
             if self._is_player0_looping:
                 self.play()
 
+    # TODO:
+    # def filesrc_message_cb(self, element, message):
+    #     t = message.type
+    #     if t == gst.MESSAGE_EOS:
+    #         print("eos")
+    #         # FIXME
+    #         self._pipeline.set_state(gst.STATE_PLAYING)
+        
+    def stop(self):
+        self._pipeline.set_state(gst.STATE_NULL)
+        gst.info("stopped _player0")
+
     def set_location(self, location, fade_duration=0.0):
         was_playing = False
         if self._is_playing:
             was_playing = True
             self.stop()
         use_crossfade = False
-        if fade_duration >= 0.02:
-            use_crossfade = True
-        if use_crossfade:
-            pass
-            # TODO
-        #else:
-        #self._pipeline.set_state(gst.STATE_PAUSED)
+
         self.change_videosource_index()
         videosource_index = self.get_videosource_index()
 
@@ -177,6 +207,12 @@ class VideoPlayer(object):
         #self._pipeline.set_state(gst.STATE_PLAYING)
         if was_playing:
             self.play()
+
+        # Fade:
+        target = 0.0
+        if videosource_index == 1:
+            target = 1.0
+        self._alpha_ramp.start(target, fade_duration)
 
     # def query_position(self):
     #     "Returns a (position, duration) tuple"
@@ -573,7 +609,8 @@ class VeeJay(object):
                 #uri = "file://%s" % (file_path)
                 uri = file_path
                 #if gst.uri_is_valid(uri):
-                self._video_player.set_location(uri)
+                fadein = video_cue.fadein
+                self._video_player.set_location(uri, fadein)
                 ret = True
                 #else:
                 #    msg = "Error: Invalid URI: %s\n" % (uri)
