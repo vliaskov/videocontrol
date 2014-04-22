@@ -72,14 +72,16 @@ class VideoPlayer(object):
         # Source 0:
         self._filesrc0 = gst.element_factory_make("filesrc", "_filesrc0")
         decodebin0 = gst.element_factory_make("decodebin", "_decodebin0")
+        videoscale0 = gst.element_factory_make("videoscale", "videoscale0")
         alpha0 = gst.element_factory_make("alpha", "alpha0")
-        self._pipeline.add_many(self._filesrc0, decodebin0, alpha0)
+        self._pipeline.add_many(self._filesrc0, decodebin0, videoscale0, alpha0)
 
         # Source 0:
         self._filesrc1 = gst.element_factory_make("filesrc", "_filesrc1")
         decodebin1 = gst.element_factory_make("decodebin", "_decodebin1")
+        videoscale1 = gst.element_factory_make("videoscale", "videoscale1")
         alpha1 = gst.element_factory_make("alpha", "alpha1")
-        self._pipeline.add_many(self._filesrc1, decodebin1, alpha1)
+        self._pipeline.add_many(self._filesrc1, decodebin1, videoscale1, alpha1)
 
         # Mixer:
         mixer = gst.element_factory_make("videomixer", "mixer")
@@ -90,7 +92,8 @@ class VideoPlayer(object):
         # Linking:
         gst.element_link_many(self._filesrc0, decodebin0)
         gst.element_link_many(self._filesrc1, decodebin1)
-        gst.element_link_many(alpha0, mixer, videoconvert0, videosink)
+        gst.element_link_many(videoscale0, alpha0, mixer, videoconvert0, videosink)
+        gst.element_link_many(videoscale1, alpha1)
         alpha1.link(mixer) # _pads("src", mixer, mixer.get_request_pad("sink_1"))
 
         def _decodebin_pad_added_cb(decoder, pad, target):
@@ -98,8 +101,8 @@ class VideoPlayer(object):
             if tpad:
                 pad.link(tpad)
 
-        decodebin0.connect("pad-added", _decodebin_pad_added_cb, alpha0)
-        decodebin1.connect("pad-added", _decodebin_pad_added_cb, alpha1)
+        decodebin0.connect("pad-added", _decodebin_pad_added_cb, videoscale0)
+        decodebin1.connect("pad-added", _decodebin_pad_added_cb, videoscale1)
 
         # Manage Gtk+ widget:
         self._videowidget = videowidget
@@ -167,14 +170,15 @@ class VideoPlayer(object):
         if t == gst.MESSAGE_ERROR:
             err, debug = message.parse_error()
             print "Error: %s" % err, debug
-            call_callbacks(self.eos_callbacks)
+            #call_callbacks(self.eos_callbacks)
             self._is_playing = False
+            self.play()
         elif t == gst.MESSAGE_EOS:
             print("eos")
-            call_callbacks(self.eos_callbacks)
+            #call_callbacks(self.eos_callbacks)
             self._is_playing = False
-            if self._is_player0_looping:
-                self.play()
+            #if self._is_player0_looping:
+            self.play()
 
     # TODO:
     # def filesrc_message_cb(self, element, message):
@@ -189,24 +193,28 @@ class VideoPlayer(object):
         gst.info("stopped _player0")
 
     def set_location(self, location, fade_duration=0.0):
-        was_playing = False
-        if self._is_playing:
-            was_playing = True
-            self.stop()
-        use_crossfade = False
+        #was_playing = False
+        #if self._is_playing:
+        #    was_playing = True
+        #    self.stop()
+        #use_crossfade = False
 
         self.change_videosource_index()
         videosource_index = self.get_videosource_index()
 
+        self._pipeline.set_state(gst.STATE_READY)
         if videosource_index == 0:
             self._filesrc0.set_property("location", location)
         elif videosource_index == 1:
             self._filesrc1.set_property("location", location)
         else:
             print("invalid video source index.")
+        self._pipeline.set_state(gst.STATE_PLAYING)
+        
+        print("Play index=%d, fadein=%f, location=%s" % (videosource_index, fade_duration, location))
         #self._pipeline.set_state(gst.STATE_PLAYING)
-        if was_playing:
-            self.play()
+        # if was_playing:
+        #     self.play()
 
         # Fade:
         target = 0.0
@@ -316,7 +324,7 @@ class PlayerApp(object):
         vbox = gtk.VBox()
         self.window.add(vbox)
         self._video_widget = VideoWidget()
-        self._video_widget.connect_after('realize', self.play_toggled)
+        self._video_widget.connect_after('realize', self._video_widget_realize_cb)
         vbox.pack_start(self._video_widget)
 
         # hbox = gtk.HBox()
@@ -385,7 +393,8 @@ class PlayerApp(object):
         Called when the player calls its eos_callbacks
         """
         self._video_player.seek(0L)
-        self.play_toggled()
+        #self.play_toggled()
+        self._video_player.play()
 
     def load_file(self, location):
         print("loading %s" % (location))
@@ -472,6 +481,9 @@ class PlayerApp(object):
         if parent == self.window:
             return
         self._showhideWidgets(parent, hide)
+
+    def _video_widget_realize_cb(self, *args):
+        self._video_player.play()
 
     def play_toggled(self, *args):
         """
