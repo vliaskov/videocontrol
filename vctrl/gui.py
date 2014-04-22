@@ -47,15 +47,17 @@ gtk.gdk.threads_init()
 from vctrl import sig
 from vctrl import ramp
 
+# Letters and numbers:
 ALNUMS = [chr(x) for x in range(ord("a"), ord("z") + 1)]
 ALNUMS.extend(["%s" % (x,) for x in range(0, 9)])
 
-def call_callbacks(callbacks, *args, **kwargs):
-    """
-    Calls each callable in the list of callbacks with the arguments and keyword-arguments provided.
-    """
-    for c in callbacks:
-        c(*args, **kwargs)
+
+# def call_callbacks(callbacks, *args, **kwargs):
+#     """
+#     Calls each callable in the list of callbacks with the arguments and keyword-arguments provided.
+#     """
+#     for c in callbacks:
+#         c(*args, **kwargs)
 
 
 class VideoPlayer(object):
@@ -113,17 +115,21 @@ class VideoPlayer(object):
         bus.enable_sync_message_emission()
         bus.add_signal_watch()
         bus.connect('sync-message::element', self.on_sync_message)
-        bus.connect('message', self.on_message)
+        #bus.connect('message', self.on_message)
         self._is_player0_looping = True
 
-        # FIXME
-        #alpha0.set_property("alpha", 0.5)
-        alpha1.set_property("alpha", 0.0)
-        mixer.set_property("background", 1) # black
-        self._alpha1 = alpha1
-        
+        #self._filesrc0.connect('message', self._filesrc_message_cb, self._filesrc0)
+        #self._filesrc1.connect('message', self._filesrc_message_cb, self._filesrc1)
+
+        # alpha transitions
         self._alpha_ramp = ramp.Ramp()
         self._alpha_ramp.jump_to(0.0)
+
+        mixer.set_property("background", 1) # black
+        self._alpha1 = alpha1
+        self._alpha0 = alpha0
+        self.set_videosource_mix(0.0)
+        
         self._poll_ramp_looping_call = task.LoopingCall(self._poll_ramp)
         self._poll_ramp_looping_call.start(1 / 30., now=False)
 
@@ -137,6 +143,7 @@ class VideoPlayer(object):
         @param alpha: alpha of the clip 1. [0, 1]
         """        
         self._alpha1.set_property("alpha", alpha)
+        self._alpha0.set_property("alpha", 1.0 - alpha)
 
     def load_default_files(self, file0, file1):
         """
@@ -173,19 +180,20 @@ class VideoPlayer(object):
             #call_callbacks(self.eos_callbacks)
             self._is_playing = False
             self.play()
-        elif t == gst.MESSAGE_EOS:
-            print("eos")
-            #call_callbacks(self.eos_callbacks)
-            self._is_playing = False
-            #if self._is_player0_looping:
-            self.play()
+        # elif t == gst.MESSAGE_EOS:
+        #     print("eos")
+        #     #call_callbacks(self.eos_callbacks)
+        #     self._is_playing = False
+        #     #if self._is_player0_looping:
+        #     self.play()
 
     # TODO:
-    # def filesrc_message_cb(self, element, message):
+    # def _filesrc_message_cb(self, element, message, filesrc):
     #     t = message.type
     #     if t == gst.MESSAGE_EOS:
     #         print("eos")
-    #         # FIXME
+    #         self._pipeline.set_state(gst.STATE_READY)
+    #         filesrc.seek(0L)
     #         self._pipeline.set_state(gst.STATE_PLAYING)
         
     def stop(self):
