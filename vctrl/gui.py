@@ -75,15 +75,17 @@ class VideoPlayer(object):
         self._filesrc0 = gst.element_factory_make("filesrc", "_filesrc0")
         decodebin0 = gst.element_factory_make("decodebin", "_decodebin0")
         videoscale0 = gst.element_factory_make("videoscale", "videoscale0")
+        queue0 = gst.element_factory_make("queue", "queue0")
         alpha0 = gst.element_factory_make("alpha", "alpha0")
-        self._pipeline.add_many(self._filesrc0, decodebin0, videoscale0, alpha0)
+        self._pipeline.add_many(self._filesrc0, decodebin0, videoscale0, queue0, alpha0)
 
         # Source 0:
         self._filesrc1 = gst.element_factory_make("filesrc", "_filesrc1")
         decodebin1 = gst.element_factory_make("decodebin", "_decodebin1")
         videoscale1 = gst.element_factory_make("videoscale", "videoscale1")
+        queue1 = gst.element_factory_make("queue", "queue1")
         alpha1 = gst.element_factory_make("alpha", "alpha1")
-        self._pipeline.add_many(self._filesrc1, decodebin1, videoscale1, alpha1)
+        self._pipeline.add_many(self._filesrc1, decodebin1, videoscale1, queue1, alpha1)
 
         # Mixer:
         mixer = gst.element_factory_make("videomixer", "mixer")
@@ -94,15 +96,19 @@ class VideoPlayer(object):
         # Linking:
         gst.element_link_many(self._filesrc0, decodebin0)
         gst.element_link_many(self._filesrc1, decodebin1)
-        gst.element_link_many(videoscale0, alpha0, mixer, videoconvert0, videosink)
-        gst.element_link_many(videoscale1, alpha1)
+        gst.element_link_many(videoscale0, queue0, alpha0, mixer, videoconvert0, videosink)
+        gst.element_link_many(videoscale1, queue1, alpha1)
         alpha1.link(mixer) # _pads("src", mixer, mixer.get_request_pad("sink_1"))
 
         def _decodebin_pad_added_cb(decoder, pad, target):
             tpad = target.get_compatible_pad(pad)
             if tpad:
                 pad.link(tpad)
+                tpad.add_event_probe(self._decodebin_event_probe_cb, decoder)
+                tpad.add_event_probe(self._decodebin_event_probe_cb, decoder)
 
+        self._decodebin0 = decodebin0
+        self._decodebin1 = decodebin1
         decodebin0.connect("pad-added", _decodebin_pad_added_cb, videoscale0)
         decodebin1.connect("pad-added", _decodebin_pad_added_cb, videoscale1)
 
@@ -132,6 +138,33 @@ class VideoPlayer(object):
         
         self._poll_ramp_looping_call = task.LoopingCall(self._poll_ramp)
         self._poll_ramp_looping_call.start(1 / 30., now=False)
+
+
+    def _decodebin_event_probe_cb(self, pad, event, decodebin):
+        if event.type == gst.EVENT_EOS:
+            #print("_decodebin_event_probe_cb" + str(event))
+            if decodebin is self._decodebin0:
+                self._seek_decodebin(decodebin, 0L)
+            if decodebin is self._decodebin1:
+                self._seek_decodebin(decodebin, 0L)
+
+    def _seek_decodebin(self, decodebin, location):
+        """
+        @param location: time to seek to, in nanoseconds
+        """
+        pass
+        # TODO
+        #FIXME
+        # event = gst.event_new_seek(1.0, gst.FORMAT_TIME,
+        #     gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_ACCURATE,
+        #     gst.SEEK_TYPE_SET, location,
+        #     gst.SEEK_TYPE_NONE, 0)
+        # res = decodebin.send_event(event)
+        # if res:
+        #     # gst.info("setting new stream time to 0")
+        #     decodebin.set_new_stream_time(0L)
+        # else:
+        #     gst.error("seek to %r failed" % location)
 
     def _poll_ramp(self):
         value = self._alpha_ramp.poll()
@@ -201,12 +234,21 @@ class VideoPlayer(object):
         gst.info("stopped _player0")
 
     def set_location(self, location, fade_duration=0.0):
+        """
+        @param location: video file path (ex: /home/aalex/goo.mov)
+        @fade_duration: duration of the fadein in seconds
+        """
         #was_playing = False
         #if self._is_playing:
         #    was_playing = True
         #    self.stop()
         #use_crossfade = False
 
+        # player0 -> mixer --> out
+        # player1 -> 
+
+        # current player index is either 0 or 1
+        # If it was 0, it's now 1,and the other way around
         self.change_videosource_index()
         videosource_index = self.get_videosource_index()
 
