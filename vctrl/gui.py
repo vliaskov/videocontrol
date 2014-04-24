@@ -70,6 +70,7 @@ class VideoPlayer(object):
         self._is_playing = False
         # Pipeline
         self._pipeline = gst.Pipeline("pipeline")
+        # TODO: use the mixer's pad's alpha prop instead of the alpha elements, and get rid of the alpha elements
 
         # Source 0:
         self._filesrc0 = gst.element_factory_make("filesrc", "_filesrc0")
@@ -142,11 +143,13 @@ class VideoPlayer(object):
 
     def _decodebin_event_probe_cb(self, pad, event, decodebin):
         if event.type == gst.EVENT_EOS:
+            self._pipeline.set_state(gst.STATE_PLAYING)
             #print("_decodebin_event_probe_cb" + str(event))
             if decodebin is self._decodebin0:
                 self._seek_decodebin(decodebin, 0L)
             if decodebin is self._decodebin1:
                 self._seek_decodebin(decodebin, 0L)
+
 
     def _seek_decodebin(self, decodebin, location):
         """
@@ -183,8 +186,8 @@ class VideoPlayer(object):
         You must load some video file, otherwise there will be errors.
         """
         print("load_default_files: %s %s" % (file0, file1))
-        self.set_location(file0)
         self.set_location(file1)
+        self.set_location(file0)
 
     def get_videosource_index(self):
         return self._videosource_index
@@ -205,20 +208,22 @@ class VideoPlayer(object):
             message.src.set_property('force-aspect-ratio', True)
             gtk.gdk.threads_leave()
             
-    def on_message(self, bus, message):
-        t = message.type
-        if t == gst.MESSAGE_ERROR:
-            err, debug = message.parse_error()
-            print "Error: %s" % err, debug
-            #call_callbacks(self.eos_callbacks)
-            self._is_playing = False
-            self.play()
-        # elif t == gst.MESSAGE_EOS:
-        #     print("eos")
-        #     #call_callbacks(self.eos_callbacks)
-        #     self._is_playing = False
-        #     #if self._is_player0_looping:
-        #     self.play()
+    # def on_message(self, bus, message):
+    #     t = message.type
+    #     if t == gst.MESSAGE_ERROR:
+    #         err, debug = message.parse_error()
+    #         print "Error: %s" % err, debug
+    #         #call_callbacks(self.eos_callbacks)
+    #         self._is_playing = False
+    #         self.play()
+    #     elif t == gst.MESSAGE_EOS:
+    #         print("XXXX PLAYING")
+    #         self._pipeline.set_state(gst.STATE_PLAYING)
+    #     #     print("eos")
+    #     #     #call_callbacks(self.eos_callbacks)
+    #     #     self._is_playing = False
+    #     #     #if self._is_player0_looping:
+    #     #     self.play()
 
     # TODO:
     # def _filesrc_message_cb(self, element, message, filesrc):
@@ -270,6 +275,7 @@ class VideoPlayer(object):
         target = 0.0
         if videosource_index == 1:
             target = 1.0
+        self._alpha_ramp.jump_to(1.0 - target) # make previous clip 100% and then fade to the next one
         self._alpha_ramp.start(target, fade_duration)
 
     # def query_position(self):
