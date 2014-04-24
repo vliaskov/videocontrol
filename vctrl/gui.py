@@ -25,6 +25,12 @@ Main GUI of the application.
  * GST pipeline
  * GTK window
  * VJ conductor
+
+Pipeline::
+  
+  filesrc -> decodebin -> videoscale -> queue -> alpha -> videomixer -> ffmpegcolorspace -> xvimagesink
+  filesrc -> decodebin -> videoscale -> queue -> alpha -/
+
 """
 # Import order matters !!!
 import os
@@ -51,7 +57,6 @@ from vctrl import ramp
 ALNUMS = [chr(x) for x in range(ord("a"), ord("z") + 1)]
 ALNUMS.extend(["%s" % (x,) for x in range(0, 9)])
 
-
 # def call_callbacks(callbacks, *args, **kwargs):
 #     """
 #     Calls each callable in the list of callbacks with the arguments and keyword-arguments provided.
@@ -59,31 +64,35 @@ ALNUMS.extend(["%s" % (x,) for x in range(0, 9)])
 #     for c in callbacks:
 #         c(*args, **kwargs)
 
-
 class VideoPlayer(object):
     """
     Video player.
     """
     def __init__(self, videowidget):
+        self._filesrc0_location = None
+        self._filesrc1_location = None
         self._videosource_index = 0
 
-        self._is_playing = False
+        #self._is_playing = False
         # Pipeline
         self._pipeline = gst.Pipeline("pipeline")
+        # TODO: use the mixer's pad's alpha prop instead of the alpha elements, and get rid of the alpha elements
 
         # Source 0:
         self._filesrc0 = gst.element_factory_make("filesrc", "_filesrc0")
         decodebin0 = gst.element_factory_make("decodebin", "_decodebin0")
         videoscale0 = gst.element_factory_make("videoscale", "videoscale0")
+        queue0 = gst.element_factory_make("queue", "queue0")
         alpha0 = gst.element_factory_make("alpha", "alpha0")
-        self._pipeline.add_many(self._filesrc0, decodebin0, videoscale0, alpha0)
+        self._pipeline.add_many(self._filesrc0, decodebin0, videoscale0, queue0, alpha0)
 
         # Source 0:
         self._filesrc1 = gst.element_factory_make("filesrc", "_filesrc1")
         decodebin1 = gst.element_factory_make("decodebin", "_decodebin1")
         videoscale1 = gst.element_factory_make("videoscale", "videoscale1")
+        queue1 = gst.element_factory_make("queue", "queue1")
         alpha1 = gst.element_factory_make("alpha", "alpha1")
-        self._pipeline.add_many(self._filesrc1, decodebin1, videoscale1, alpha1)
+        self._pipeline.add_many(self._filesrc1, decodebin1, videoscale1, queue1, alpha1)
 
         # Mixer:
         mixer = gst.element_factory_make("videomixer", "mixer")
@@ -94,28 +103,33 @@ class VideoPlayer(object):
         # Linking:
         gst.element_link_many(self._filesrc0, decodebin0)
         gst.element_link_many(self._filesrc1, decodebin1)
-        gst.element_link_many(videoscale0, alpha0, mixer, videoconvert0, videosink)
-        gst.element_link_many(videoscale1, alpha1)
+        gst.element_link_many(videoscale0, queue0, alpha0, mixer, videoconvert0, videosink)
+        gst.element_link_many(videoscale1, queue1, alpha1)
         alpha1.link(mixer) # _pads("src", mixer, mixer.get_request_pad("sink_1"))
 
         def _decodebin_pad_added_cb(decoder, pad, target):
             tpad = target.get_compatible_pad(pad)
             if tpad:
                 pad.link(tpad)
+                tpad.add_event_probe(self._decodebin_event_probe_cb, decoder)
+                tpad.add_event_probe(self._decodebin_event_probe_cb, decoder)
 
+        self._decodebin0 = decodebin0
+        self._decodebin1 = decodebin1
+        # XXX
         decodebin0.connect("pad-added", _decodebin_pad_added_cb, videoscale0)
         decodebin1.connect("pad-added", _decodebin_pad_added_cb, videoscale1)
 
         # Manage Gtk+ widget:
         self._videowidget = videowidget
-        self.eos_callbacks = [] 
+        #self.eos_callbacks = [] 
 
         # Handle looping:
         bus = self._pipeline.get_bus()
         bus.enable_sync_message_emission()
         bus.add_signal_watch()
         bus.connect('sync-message::element', self.on_sync_message)
-        #bus.connect('message', self.on_message)
+        bus.connect('message', self.on_message)
         self._is_player0_looping = True
 
         #self._filesrc0.connect('message', self._filesrc_message_cb, self._filesrc0)
@@ -132,6 +146,65 @@ class VideoPlayer(object):
         
         self._poll_ramp_looping_call = task.LoopingCall(self._poll_ramp)
         self._poll_ramp_looping_call.start(1 / 30., now=False)
+
+
+    def _decodebin_event_probe_cb(self, pad, event, decodebin):
+        if event.type == gst.EVENT_EOS:
+            reactor.callLater(0.01, self._loop_clip_decodebin, decodebin)
+            return False # so event doesnt keep on flowing
+        else:
+            return True # so event keeps on flowing
+
+    def _restart_after_error(self):
+        self._pipeline.set_state(gst.STATE_READY)
+        if self._filesrc0_location is not None:
+            self._filesrc0.set_state(gst.STATE_READY)
+            print("set location to %s (after error) for filesrc0" % (self._filesrc0_location))
+            self._filesrc0.set_property("location", self._filesrc0_location)
+        if self._filesrc1_location is not None:
+            self._filesrc1.set_state(gst.STATE_READY)
+            print("set location to %s (after error) for filesrc1" % (self._filesrc1_location))
+            self._filesrc1.set_property("location", self._filesrc1_location)
+        self._pipeline.set_state(gst.STATE_PLAYING)
+
+    def _loop_clip_decodebin(self, decodebin):
+        #self._pipeline.set_state(gst.STATE_PAUSED)
+        self._pipeline.set_state(gst.STATE_READY)
+        #print("_decodebin_event_probe_cb" + str(event))
+        if decodebin is self._decodebin0:
+            if self._filesrc0_location is not None:
+                self._filesrc0.set_state(gst.STATE_READY)
+                print("set location to %s (looping) for filesrc0" % (self._filesrc0_location))
+                #self._filesrc0.set_property("location", "/tmp/invalidfile")
+                self._filesrc0.set_property("location", self._filesrc0_location)
+            #self._seek_decodebin(decodebin, 0L)
+        if decodebin is self._decodebin1:
+            if self._filesrc1_location is not None:
+                self._filesrc1.set_state(gst.STATE_READY)
+                print("set location to %s (looping) for filesrc1" % (self._filesrc1_location))
+                #self._filesrc1.set_property("location", "/tmp/invalidfile")
+                self._filesrc1.set_property("location", self._filesrc1_location)
+            #self._seek_decodebin(decodebin, 0L)
+        self._pipeline.set_state(gst.STATE_PLAYING)
+
+
+    def _seek_decodebin(self, decodebin, location):
+        """
+        @param location: time to seek to, in nanoseconds
+        """
+        pass
+        # TODO
+        #FIXME
+        # event = gst.event_new_seek(1.0, gst.FORMAT_TIME,
+        #     gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_ACCURATE,
+        #     gst.SEEK_TYPE_SET, location,
+        #     gst.SEEK_TYPE_NONE, 0)
+        # res = decodebin.send_event(event)
+        # if res:
+        #     # gst.info("setting new stream time to 0")
+        #     decodebin.set_new_stream_time(0L)
+        # else:
+        #     gst.error("seek to %r failed" % location)
 
     def _poll_ramp(self):
         value = self._alpha_ramp.poll()
@@ -150,8 +223,8 @@ class VideoPlayer(object):
         You must load some video file, otherwise there will be errors.
         """
         print("load_default_files: %s %s" % (file0, file1))
-        self.set_location(file0)
         self.set_location(file1)
+        self.set_location(file0)
 
     def get_videosource_index(self):
         return self._videosource_index
@@ -161,7 +234,7 @@ class VideoPlayer(object):
         return self._videosource_index
 
     def on_sync_message(self, bus, message):
-        print "on_sync_message", bus, message
+        #print("on_sync_message %s %s", (bus, message))
         if message.structure is None:
             return
         if message.structure.get_name() == 'prepare-xwindow-id':
@@ -176,11 +249,16 @@ class VideoPlayer(object):
         t = message.type
         if t == gst.MESSAGE_ERROR:
             err, debug = message.parse_error()
-            print "Error: %s" % err, debug
+            print("Error: %s %s" % (err, debug))
+            self._restart_after_error()
             #call_callbacks(self.eos_callbacks)
-            self._is_playing = False
-            self.play()
-        # elif t == gst.MESSAGE_EOS:
+            #self._is_playing = False
+            #self.play()
+            #self._pipeline.set_state(gst.STATE_PLAYING)
+        elif t == gst.MESSAGE_EOS:
+            print("XXXX PLAYING")
+            # should not get here.
+            self._pipeline.set_state(gst.STATE_PLAYING)
         #     print("eos")
         #     #call_callbacks(self.eos_callbacks)
         #     self._is_playing = False
@@ -201,25 +279,38 @@ class VideoPlayer(object):
         gst.info("stopped _player0")
 
     def set_location(self, location, fade_duration=0.0):
+        """
+        @param location: video file path (ex: /home/aalex/goo.mov)
+        @fade_duration: duration of the fadein in seconds
+        """
         #was_playing = False
         #if self._is_playing:
         #    was_playing = True
         #    self.stop()
         #use_crossfade = False
 
+        # player0 -> mixer --> out
+        # player1 -> 
+
+        # current player index is either 0 or 1
+        # If it was 0, it's now 1,and the other way around
         self.change_videosource_index()
         videosource_index = self.get_videosource_index()
+        print("Play index=%d, fadein=%f, location=%s" % (videosource_index, fade_duration, location))
 
         self._pipeline.set_state(gst.STATE_READY)
         if videosource_index == 0:
+            self._filesrc0_location = location
+            print("set location to %s for filesrc 0" % (location))
             self._filesrc0.set_property("location", location)
         elif videosource_index == 1:
+            self._filesrc1_location = location
+            print("set location to %s for filesrc 1" % (location))
             self._filesrc1.set_property("location", location)
         else:
             print("invalid video source index.")
         self._pipeline.set_state(gst.STATE_PLAYING)
         
-        print("Play index=%d, fadein=%f, location=%s" % (videosource_index, fade_duration, location))
         #self._pipeline.set_state(gst.STATE_PLAYING)
         # if was_playing:
         #     self.play()
@@ -228,6 +319,7 @@ class VideoPlayer(object):
         target = 0.0
         if videosource_index == 1:
             target = 1.0
+        self._alpha_ramp.jump_to(1.0 - target) # make previous clip 100% and then fade to the next one
         self._alpha_ramp.start(target, fade_duration)
 
     # def query_position(self):
@@ -258,26 +350,22 @@ class VideoPlayer(object):
         else:
             gst.error("seek to %r failed" % location)
 
-    def pause(self):
-        gst.info("pausing _player0")
-        self._pipeline.set_state(gst.STATE_PAUSED)
-        self._is_playing = False
+    # def pause(self):
+    #     gst.info("pausing _player0")
+    #     self._pipeline.set_state(gst.STATE_PAUSED)
+    #     #self._is_playing = False
 
     def play(self):
         #gst.info("playing _player0")
-        print("playing _player0")
+        #print("playing _player0")
         self._pipeline.set_state(gst.STATE_PLAYING)
-        self._is_playing = True
-        
-    def stop(self):
-        self._pipeline.set_state(gst.STATE_NULL)
-        gst.info("stopped _player0")
+        #self._is_playing = True
 
     def get_state(self, timeout=1):
         return self._pipeline.get_state(timeout=timeout)
 
-    def is_playing(self):
-        return self._is_playing
+    # def is_playing(self):
+    #     return self._is_playing
 
     
 class VideoWidget(gtk.DrawingArea):
@@ -369,7 +457,7 @@ class PlayerApp(object):
         
         # player
         self._video_player = VideoPlayer(self._video_widget)
-        self._video_player.eos_callbacks.append(self.on_video_eos)
+        #self._video_player.eos_callbacks.append(self.on_video_eos)
         
         # delayed calls using gobject. Update the slider.
         # self.update_id = -1
@@ -396,13 +484,13 @@ class PlayerApp(object):
         """
         return self.window
 
-    def on_video_eos(self):
-        """
-        Called when the player calls its eos_callbacks
-        """
-        self._video_player.seek(0L)
-        #self.play_toggled()
-        self._video_player.play()
+    # def on_video_eos(self):
+    #     """
+    #     Called when the player calls its eos_callbacks
+    #     """
+    #     self._video_player.seek(0L)
+    #     #self.play_toggled()
+    #     self._video_player.play()
 
     def load_file(self, location):
         print("loading %s" % (location))
@@ -424,7 +512,6 @@ class PlayerApp(object):
         Escape toggles fullscreen mode.
         """
         name = gtk.gdk.keyval_name(event.keyval)
-
         # We want to ignore irrelevant modifiers like ScrollLock
         control_pressed = False
         ALL_ACCELS_MASK = (gtk.gdk.CONTROL_MASK | gtk.gdk.SHIFT_MASK | gtk.gdk.MOD1_MASK)
@@ -451,10 +538,10 @@ class PlayerApp(object):
         """
         if self.is_fullscreen:
             self.window.unfullscreen()
-            self._showhideWidgets(self._video_widget, False)
+            #self._showhideWidgets(self._video_widget, False)
         else:
             self.window.fullscreen()
-            self._showhideWidgets(self._video_widget, True)
+            #self._showhideWidgets(self._video_widget, True)
 
     def on_window_state_event(self, widget, event):
         """
@@ -471,42 +558,42 @@ class PlayerApp(object):
             self.window.window.set_cursor(None)
         return True
     
-    def _showhideWidgets(self, except_widget, hide=True):
-        """
-        Show or hide all widgets in the window except the given
-        widget. Used for going fullscreen: in fullscreen, you only
-        want the clutter embed widget and the menu bar etc.
-        Recursive.
-        """
-        parent = except_widget.get_parent()
-        for c in parent.get_children():
-            if c != except_widget:
-                #print "toggle %s visibility %s" % (c, hide)
-                if hide:
-                    c.hide()
-                else:
-                    c.show()
-        if parent == self.window:
-            return
-        self._showhideWidgets(parent, hide)
+    # def _showhideWidgets(self, except_widget, hide=True):
+    #     """
+    #     Show or hide all widgets in the window except the given
+    #     widget. Used for going fullscreen: in fullscreen, you only
+    #     want the clutter embed widget and the menu bar etc.
+    #     Recursive.
+    #     """
+    #     parent = except_widget.get_parent()
+    #     for c in parent.get_children():
+    #         if c != except_widget:
+    #             #print "toggle %s visibility %s" % (c, hide)
+    #             if hide:
+    #                 c.hide()
+    #             else:
+    #                 c.show()
+    #     if parent == self.window:
+    #         return
+    #     self._showhideWidgets(parent, hide)
 
     def _video_widget_realize_cb(self, *args):
         self._video_player.play()
 
-    def play_toggled(self, *args):
-        """
-        Called when the play/pause button is clicked, 
-        and also when other events occur.
-        """
-        #self.button.remove(self.button.child)
-        if self._video_player.is_playing():
-            self._video_player.pause()
-            #self.button.add(self.play_image)
-        else:
-            self._video_player.play()
-            # if self.update_id == -1:
-            #     self.update_id = gobject.timeout_add(self.UPDATE_INTERVAL, self.update_scale_cb)
-            #self.button.add(self.pause_image)
+    # def play_toggled(self, *args):
+    #     """
+    #     Called when the play/pause button is clicked, 
+    #     and also when other events occur.
+    #     """
+    #     #self.button.remove(self.button.child)
+    #     if self._video_player.is_playing():
+    #         self._video_player.pause()
+    #         #self.button.add(self.play_image)
+    #     else:
+    #         self._video_player.play()
+    #         # if self.update_id == -1:
+    #         #     self.update_id = gobject.timeout_add(self.UPDATE_INTERVAL, self.update_scale_cb)
+    #         #self.button.add(self.pause_image)
 
     # def scale_format_value_cb(self, scale, value):
     #     if self.p_duration == -1:
