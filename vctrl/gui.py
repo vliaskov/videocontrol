@@ -25,6 +25,12 @@ Main GUI of the application.
  * GST pipeline
  * GTK window
  * VJ conductor
+
+Pipeline::
+  
+  filesrc -> decodebin -> videoscale -> queue -> alpha -> videomixer -> ffmpegcolorspace -> xvimagesink
+  filesrc -> decodebin -> videoscale -> queue -> alpha -/
+
 """
 # Import order matters !!!
 import os
@@ -149,21 +155,34 @@ class VideoPlayer(object):
         else:
             return True # so event keeps on flowing
 
+    def _restart_after_error(self):
+        self._pipeline.set_state(gst.STATE_READY)
+        if self._filesrc0_location is not None:
+            self._filesrc0.set_state(gst.STATE_READY)
+            print("set location to %s (after error) for filesrc0" % (self._filesrc0_location))
+            self._filesrc0.set_property("location", self._filesrc0_location)
+        if self._filesrc1_location is not None:
+            self._filesrc1.set_state(gst.STATE_READY)
+            print("set location to %s (after error) for filesrc1" % (self._filesrc1_location))
+            self._filesrc1.set_property("location", self._filesrc1_location)
+        self._pipeline.set_state(gst.STATE_PLAYING)
+
     def _loop_clip_decodebin(self, decodebin):
-        self._pipeline.set_state(gst.STATE_PAUSED)
+        #self._pipeline.set_state(gst.STATE_PAUSED)
+        self._pipeline.set_state(gst.STATE_READY)
         #print("_decodebin_event_probe_cb" + str(event))
         if decodebin is self._decodebin0:
             if self._filesrc0_location is not None:
                 self._filesrc0.set_state(gst.STATE_READY)
-                print("set location to %s (looping) for filesrc 0" % (self._filesrc0_location))
-                self._filesrc0.set_property("location", "/tmp/invalidfile")
+                print("set location to %s (looping) for filesrc0" % (self._filesrc0_location))
+                #self._filesrc0.set_property("location", "/tmp/invalidfile")
                 self._filesrc0.set_property("location", self._filesrc0_location)
             #self._seek_decodebin(decodebin, 0L)
         if decodebin is self._decodebin1:
             if self._filesrc1_location is not None:
                 self._filesrc1.set_state(gst.STATE_READY)
-                print("set location to %s (looping) for filesrc 1" % (self._filesrc1_location))
-                self._filesrc1.set_property("location", "/tmp/invalidfile")
+                print("set location to %s (looping) for filesrc1" % (self._filesrc1_location))
+                #self._filesrc1.set_property("location", "/tmp/invalidfile")
                 self._filesrc1.set_property("location", self._filesrc1_location)
             #self._seek_decodebin(decodebin, 0L)
         self._pipeline.set_state(gst.STATE_PLAYING)
@@ -231,10 +250,11 @@ class VideoPlayer(object):
         if t == gst.MESSAGE_ERROR:
             err, debug = message.parse_error()
             print("Error: %s %s" % (err, debug))
+            self._restart_after_error()
             #call_callbacks(self.eos_callbacks)
             #self._is_playing = False
             #self.play()
-            self._pipeline.set_state(gst.STATE_PLAYING)
+            #self._pipeline.set_state(gst.STATE_PLAYING)
         elif t == gst.MESSAGE_EOS:
             print("XXXX PLAYING")
             # should not get here.
@@ -276,6 +296,7 @@ class VideoPlayer(object):
         # If it was 0, it's now 1,and the other way around
         self.change_videosource_index()
         videosource_index = self.get_videosource_index()
+        print("Play index=%d, fadein=%f, location=%s" % (videosource_index, fade_duration, location))
 
         self._pipeline.set_state(gst.STATE_READY)
         if videosource_index == 0:
@@ -290,7 +311,6 @@ class VideoPlayer(object):
             print("invalid video source index.")
         self._pipeline.set_state(gst.STATE_PLAYING)
         
-        print("Play index=%d, fadein=%f, location=%s" % (videosource_index, fade_duration, location))
         #self._pipeline.set_state(gst.STATE_PLAYING)
         # if was_playing:
         #     self.play()
