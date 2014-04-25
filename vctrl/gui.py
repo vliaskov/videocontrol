@@ -75,6 +75,7 @@ class VideoPlayer(object):
         self._filesrc0 = gst.element_factory_make("filesrc", "_filesrc0")
         decodebin0 = gst.element_factory_make("decodebin", "_decodebin0")
         videoscale0 = gst.element_factory_make("videoscale", "videoscale0")
+        videoscale0_srcpad = videoscale0.get_static_pad("src") #self._filesrc0.get_static_pad("src");
         alpha0 = gst.element_factory_make("alpha", "alpha0")
         self._pipeline.add_many(self._filesrc0, decodebin0, videoscale0, alpha0)
 
@@ -82,13 +83,14 @@ class VideoPlayer(object):
         self._filesrc1 = gst.element_factory_make("filesrc", "_filesrc1")
         decodebin1 = gst.element_factory_make("decodebin", "_decodebin1")
         videoscale1 = gst.element_factory_make("videoscale", "videoscale1")
+        videoscale1_srcpad = videoscale1.get_static_pad("src") #self._filesrc1.get_static_pad("src");
         alpha1 = gst.element_factory_make("alpha", "alpha1")
         self._pipeline.add_many(self._filesrc1, decodebin1, videoscale1, alpha1)
 
         # Mixer:
         mixer = gst.element_factory_make("videomixer", "mixer")
         videoconvert0 = gst.element_factory_make("ffmpegcolorspace", "videoconvert0")
-        videosink = gst.element_factory_make("xvimagesink", "imagesink0")
+        videosink = gst.element_factory_make("autovideosink", "imagesink0")
         self._pipeline.add_many(mixer, videoconvert0, videosink)
 
         # Linking:
@@ -103,8 +105,36 @@ class VideoPlayer(object):
             if tpad:
                 pad.link(tpad)
 
+        def _pad_event_probe_cb(self, event, partialpipe, premixer, mixer,
+            player):
+            print("event probe ", event.type)
+            if (event.type == gst.EVENT_EOS):
+              print("eos event")
+              structure = gst.Structure("rewind")
+              message = gst.message_new_application(partialpipe, structure)
+              res = player._pipeline.get_bus().post(message)
+              if res:
+                 print("message to 0L sent timestamp", event.timestamp, " base sent")
+              else:
+                print("myseek to 0L failed")
+              return False
+            elif (event.type == gst.EVENT_SEEK):
+              print("seek event ", event.type, " timestamp ", event.timestamp)
+#              srcpad = premixer.get_static_pad("src")
+#              if (srcpad.is_linked() == False):
+#                print("RELINK ", event.type, " timestamp ", event.timestamp)
+#                premixer.link(mixer)
+            return True
+
         decodebin0.connect("pad-added", _decodebin_pad_added_cb, videoscale0)
         decodebin1.connect("pad-added", _decodebin_pad_added_cb, videoscale1)
+
+        videoscale0_srcpad.add_event_probe(_pad_event_probe_cb, self._filesrc0,
+            alpha0, 
+            mixer, self) #self._filesrc0) #self._pipeline) #decodebin0)
+        videoscale1_srcpad.add_event_probe(_pad_event_probe_cb, self._filesrc1,
+            alpha1,
+            mixer, self) #self._filesrc1) #self._pipeline) #decodebin1)
 
         # Manage Gtk+ widget:
         self._videowidget = videowidget
@@ -115,7 +145,7 @@ class VideoPlayer(object):
         bus.enable_sync_message_emission()
         bus.add_signal_watch()
         bus.connect('sync-message::element', self.on_sync_message)
-        #bus.connect('message', self.on_message)
+        bus.connect('message', self.on_message)
         self._is_player0_looping = True
 
         #self._filesrc0.connect('message', self._filesrc_message_cb, self._filesrc0)
@@ -180,12 +210,26 @@ class VideoPlayer(object):
             #call_callbacks(self.eos_callbacks)
             self._is_playing = False
             self.play()
-        # elif t == gst.MESSAGE_EOS:
-        #     print("eos")
+        elif t == gst.MESSAGE_EOS:
+            print("eos")
         #     #call_callbacks(self.eos_callbacks)
         #     self._is_playing = False
         #     #if self._is_player0_looping:
         #     self.play()
+        elif t == gst.MESSAGE_APPLICATION:
+            print("application")
+            loopevent = gst.event_new_seek(1.0, gst.FORMAT_TIME,
+            gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_ACCURATE,
+            gst.SEEK_TYPE_SET, 0L,
+            gst.SEEK_TYPE_NONE, 0)
+            self._pipeline.set_state(gst.STATE_PLAYING)
+            res = self._pipeline.send_event(loopevent)
+            if res:
+               print("myseek to 0L sent successfully")
+            else:
+               print("myseek to 0L failed AGAIN")
+        elif t == gst.MESSAGE_SEGMENT_DONE:
+            print("segment done")
 
     # TODO:
     # def _filesrc_message_cb(self, element, message, filesrc):
